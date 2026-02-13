@@ -1,0 +1,8 @@
+{
+  "server_url": "http://localhost:8080",
+  "enrollment_key": "change-me-in-production",
+  "interval_hours": 1,
+  "data_dir": "",
+  "log_level": "info",
+  "insecure_skip_verify": false
+}

@@ -1,0 +1,8 @@
+DROP TABLE IF EXISTS installed_software;
+DROP TABLE IF EXISTS network_interfaces;
+DROP TABLE IF EXISTS disks;
+DROP TABLE IF EXISTS hardware;
+DROP TABLE IF EXISTS device_tokens;
+DROP TABLE IF EXISTS devices;
+DROP TABLE IF EXISTS users;
+DROP EXTENSION IF EXISTS "uuid-ossp";

@@ -1,0 +1,37 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+/bin/
+
+# Test
+*.test
+*.out
+coverage.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+
+# Docker volumes
+postgres-data/
+
+# Node.js (frontend)
+node_modules/
+frontend/dist/
+web/dist/
+web/.env.local
+
+# Agent data
+agent/data/
+agent/config.json
