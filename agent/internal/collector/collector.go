@@ -57,6 +57,8 @@ func (c *Collector) Collect() (*dto.InventoryRequest, error) {
 		license = "Unknown"
 	}
 
+	remoteTools := c.collectRemoteTools()
+
 	req := &dto.InventoryRequest{
 		Hostname:      sys.Hostname,
 		SerialNumber:  sys.SerialNumber,
@@ -72,6 +74,7 @@ func (c *Collector) Collect() (*dto.InventoryRequest, error) {
 		Disks:         disks,
 		Network:       nics,
 		Software:      software,
+		RemoteTools:   remoteTools,
 	}
 
 	c.logger.Info("inventory collection complete",
@@ -80,6 +83,7 @@ func (c *Collector) Collect() (*dto.InventoryRequest, error) {
 		"disks", len(disks),
 		"network_interfaces", len(nics),
 		"installed_software", len(software),
+		"remote_tools", len(remoteTools),
 	)
 
 	return req, nil

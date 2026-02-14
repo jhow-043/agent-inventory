@@ -118,3 +118,16 @@ func (r *DeviceRepository) GetInstalledSoftware(ctx context.Context, deviceID uu
 	}
 	return sw, nil
 }
+
+// GetRemoteTools retrieves all remote tool records for a device.
+func (r *DeviceRepository) GetRemoteTools(ctx context.Context, deviceID uuid.UUID) ([]models.RemoteTool, error) {
+	var tools []models.RemoteTool
+	err := r.db.SelectContext(ctx, &tools, "SELECT * FROM remote_tools WHERE device_id = $1 ORDER BY tool_name", deviceID)
+	if err != nil {
+		return nil, err
+	}
+	if tools == nil {
+		tools = []models.RemoteTool{}
+	}
+	return tools, nil
+}

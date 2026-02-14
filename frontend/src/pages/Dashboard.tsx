@@ -1,4 +1,4 @@
-// Dashboard page showing total devices and online/offline counts.
+// Dashboard page with dark theme showing total devices and online/offline counts.
 
 import { useQuery } from '@tanstack/react-query';
 import { getDevices } from '../api/devices';
@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 
 function isOnline(lastSeen: string): boolean {
   const diff = Date.now() - new Date(lastSeen).getTime();
-  return diff < 60 * 60 * 1000; // online if seen within the last hour
+  return diff < 60 * 60 * 1000;
 }
 
 export default function Dashboard() {
@@ -16,11 +16,11 @@ export default function Dashboard() {
   });
 
   if (isLoading) {
-    return <p className="text-gray-500">Loading...</p>;
+    return <p className="text-text-muted">Loading...</p>;
   }
 
   if (error) {
-    return <p className="text-red-600">Failed to load dashboard data.</p>;
+    return <p className="text-danger">Failed to load dashboard data.</p>;
   }
 
   const devices = data?.devices ?? [];
@@ -30,7 +30,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-gray-900 mb-6">Dashboard</h1>
+      <h1 className="text-xl font-semibold text-text-primary mb-6">Dashboard</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <StatCard label="Total Devices" value={total} color="blue" />
@@ -39,7 +39,7 @@ export default function Dashboard() {
       </div>
 
       {total > 0 && (
-        <Link to="/devices" className="text-sm text-blue-600 hover:underline">
+        <Link to="/devices" className="text-sm text-accent hover:underline">
           View all devices &rarr;
         </Link>
       )}
@@ -49,9 +49,9 @@ export default function Dashboard() {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   const colors: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-700 border-blue-200',
-    green: 'bg-green-50 text-green-700 border-green-200',
-    gray: 'bg-gray-50 text-gray-700 border-gray-200',
+    blue: 'bg-accent/10 text-accent border-accent/20',
+    green: 'bg-success/10 text-success border-success/20',
+    gray: 'bg-bg-tertiary text-text-secondary border-border-primary',
   };
   return (
     <div className={`rounded-lg border p-5 ${colors[color] ?? colors.gray}`}>

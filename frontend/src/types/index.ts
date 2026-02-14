@@ -61,6 +61,14 @@ export interface InstalledSoftware {
   install_date: string;
 }
 
+export interface RemoteTool {
+  id: string;
+  device_id: string;
+  tool_name: string;
+  remote_id: string;
+  version: string;
+}
+
 export interface DeviceListResponse {
   devices: Device[];
   total: number;
@@ -72,6 +80,7 @@ export interface DeviceDetailResponse {
   disks: Disk[];
   network_interfaces: NetworkInterface[];
   installed_software: InstalledSoftware[];
+  remote_tools: RemoteTool[];
 }
 
 export interface ErrorResponse {

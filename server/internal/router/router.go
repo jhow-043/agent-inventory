@@ -33,6 +33,7 @@ func Setup(
 
 	// Health probes — no authentication required.
 	r.GET("/healthz", healthHandler.Healthz)
+	r.HEAD("/healthz", healthHandler.Healthz)
 	r.GET("/readyz", healthHandler.Readyz)
 
 	api := r.Group("/api/v1")

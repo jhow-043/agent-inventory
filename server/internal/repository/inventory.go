@@ -119,5 +119,18 @@ func (r *InventoryRepository) Save(ctx context.Context, deviceID uuid.UUID, req 
 		}
 	}
 
+	// Replace remote tools
+	if _, err = tx.ExecContext(ctx, "DELETE FROM remote_tools WHERE device_id = $1", deviceID); err != nil {
+		return fmt.Errorf("delete remote tools: %w", err)
+	}
+	for _, rt := range req.RemoteTools {
+		if _, err = tx.ExecContext(ctx, `
+			INSERT INTO remote_tools (id, device_id, tool_name, remote_id, version)
+			VALUES (uuid_generate_v4(), $1, $2, $3, $4)
+		`, deviceID, rt.ToolName, rt.RemoteID, rt.Version); err != nil {
+			return fmt.Errorf("insert remote tool: %w", err)
+		}
+	}
+
 	return tx.Commit()
 }

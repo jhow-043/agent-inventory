@@ -11,20 +11,21 @@ type EnrollRequest struct {
 
 // InventoryRequest is the full inventory payload sent by the agent.
 type InventoryRequest struct {
-	Hostname      string         `json:"hostname" binding:"required"`
-	SerialNumber  string         `json:"serial_number" binding:"required"`
-	OSName        string         `json:"os_name" binding:"required"`
-	OSVersion     string         `json:"os_version" binding:"required"`
-	OSBuild       string         `json:"os_build"`
-	OSArch        string         `json:"os_arch"`
-	LastBootTime  *time.Time     `json:"last_boot_time,omitempty"`
-	LoggedInUser  string         `json:"logged_in_user"`
-	AgentVersion  string         `json:"agent_version"`
-	LicenseStatus string         `json:"license_status"`
-	Hardware      HardwareData   `json:"hardware" binding:"required"`
-	Disks         []DiskData     `json:"disks"`
-	Network       []NetworkData  `json:"network_interfaces"`
-	Software      []SoftwareData `json:"installed_software"`
+	Hostname      string           `json:"hostname" binding:"required"`
+	SerialNumber  string           `json:"serial_number" binding:"required"`
+	OSName        string           `json:"os_name" binding:"required"`
+	OSVersion     string           `json:"os_version" binding:"required"`
+	OSBuild       string           `json:"os_build"`
+	OSArch        string           `json:"os_arch"`
+	LastBootTime  *time.Time       `json:"last_boot_time,omitempty"`
+	LoggedInUser  string           `json:"logged_in_user"`
+	AgentVersion  string           `json:"agent_version"`
+	LicenseStatus string           `json:"license_status"`
+	Hardware      HardwareData     `json:"hardware" binding:"required"`
+	Disks         []DiskData       `json:"disks"`
+	Network       []NetworkData    `json:"network_interfaces"`
+	Software      []SoftwareData   `json:"installed_software"`
+	RemoteTools   []RemoteToolData `json:"remote_tools"`
 }
 
 // HardwareData contains CPU, RAM, motherboard, and BIOS info.
@@ -68,6 +69,12 @@ type SoftwareData struct {
 }
 
 // LoginRequest is used to authenticate dashboard users.
+type RemoteToolData struct {
+	ToolName string `json:"tool_name" binding:"required"`
+	RemoteID string `json:"remote_id"`
+	Version  string `json:"version"`
+}
+
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`

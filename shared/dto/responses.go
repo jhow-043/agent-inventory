@@ -1,8 +1,9 @@
 package dto
 
 import (
-	"github.com/google/uuid"
 	"inventario/shared/models"
+
+	"github.com/google/uuid"
 )
 
 // ErrorResponse is returned for any API error.
@@ -45,4 +46,5 @@ type DeviceDetailResponse struct {
 	Disks             []models.Disk              `json:"disks"`
 	NetworkInterfaces []models.NetworkInterface  `json:"network_interfaces"`
 	InstalledSoftware []models.InstalledSoftware `json:"installed_software"`
+	RemoteTools       []models.RemoteTool        `json:"remote_tools"`
 }

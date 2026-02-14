@@ -1,8 +1,10 @@
-// Device detail page with sections for system, hardware, disks, network, and software.
+// Device detail page with dark theme and remote access section.
 
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getDevice } from '../api/devices';
+import type { RemoteTool } from '../types';
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -12,6 +14,19 @@ function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+// Tool brand colors for visual distinction
+const toolColors: Record<string, string> = {
+  TeamViewer: 'border-blue-500/30 bg-blue-500/5',
+  AnyDesk: 'border-red-500/30 bg-red-500/5',
+  RustDesk: 'border-orange-500/30 bg-orange-500/5',
+};
+
+const toolIcons: Record<string, string> = {
+  TeamViewer: 'TV',
+  AnyDesk: 'AD',
+  RustDesk: 'RD',
+};
+
 export default function DeviceDetail() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useQuery({
@@ -20,19 +35,32 @@ export default function DeviceDetail() {
     enabled: !!id,
   });
 
-  if (isLoading) return <p className="text-gray-500">Loading...</p>;
-  if (error) return <p className="text-red-600">Failed to load device details.</p>;
+  if (isLoading) return <p className="text-text-muted">Loading...</p>;
+  if (error) return <p className="text-danger">Failed to load device details.</p>;
   if (!data) return null;
 
-  const { device, hardware, disks, network_interfaces, installed_software } = data;
+  const { device, hardware, disks, network_interfaces, installed_software, remote_tools } = data;
 
   return (
     <div>
-      <Link to="/devices" className="text-sm text-blue-600 hover:underline mb-4 inline-block">
+      <Link to="/devices" className="text-sm text-accent hover:underline mb-4 inline-block">
         &larr; Back to devices
       </Link>
 
-      <h1 className="text-xl font-semibold text-gray-900 mb-6">{device.hostname}</h1>
+      <h1 className="text-xl font-semibold text-text-primary mb-6">{device.hostname}</h1>
+
+      {/* Remote Access Tools */}
+      <Section title="Remote Access">
+        {remote_tools && remote_tools.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {remote_tools.map((tool) => (
+              <RemoteToolCard key={tool.id} tool={tool} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-text-muted">No remote access tools detected.</p>
+        )}
+      </Section>
 
       {/* System Info */}
       <Section title="System">
@@ -74,8 +102,8 @@ export default function DeviceDetail() {
       {disks.length > 0 && (
         <Section title="Disks">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border-primary text-sm">
+              <thead className="bg-bg-tertiary">
                 <tr>
                   <Th>Model</Th>
                   <Th>Size</Th>
@@ -84,7 +112,7 @@ export default function DeviceDetail() {
                   <Th>Serial</Th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border-primary">
                 {disks.map((d) => (
                   <tr key={d.id}>
                     <Td>{d.model}</Td>
@@ -104,8 +132,8 @@ export default function DeviceDetail() {
       {network_interfaces.length > 0 && (
         <Section title="Network Interfaces">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border-primary text-sm">
+              <thead className="bg-bg-tertiary">
                 <tr>
                   <Th>Name</Th>
                   <Th>MAC</Th>
@@ -114,7 +142,7 @@ export default function DeviceDetail() {
                   <Th>Speed</Th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border-primary">
                 {network_interfaces.map((n) => (
                   <tr key={n.id}>
                     <Td>{n.name}</Td>
@@ -134,8 +162,8 @@ export default function DeviceDetail() {
       {installed_software.length > 0 && (
         <Section title={`Installed Software (${installed_software.length})`}>
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50 sticky top-0">
+            <table className="min-w-full divide-y divide-border-primary text-sm">
+              <thead className="bg-bg-tertiary sticky top-0">
                 <tr>
                   <Th>Name</Th>
                   <Th>Version</Th>
@@ -143,7 +171,7 @@ export default function DeviceDetail() {
                   <Th>Install Date</Th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border-primary">
                 {installed_software.map((s) => (
                   <tr key={s.id}>
                     <Td>{s.name}</Td>
@@ -162,14 +190,69 @@ export default function DeviceDetail() {
 }
 
 // ---------------------------------------------------------------------------
-// Reusable sub-components
+// Remote Tool Card with copy-to-clipboard
+// ---------------------------------------------------------------------------
+
+function RemoteToolCard({ tool }: { tool: RemoteTool }) {
+  const [copied, setCopied] = useState(false);
+  const colorClass = toolColors[tool.tool_name] ?? 'border-border-secondary bg-bg-tertiary';
+  const iconText = toolIcons[tool.tool_name] ?? tool.tool_name.substring(0, 2).toUpperCase();
+
+  const handleCopy = async () => {
+    if (!tool.remote_id) return;
+    await navigator.clipboard.writeText(tool.remote_id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className={`rounded-lg border p-4 ${colorClass}`}>
+      <div className="flex items-center gap-3 mb-2">
+        <span className="w-9 h-9 rounded-lg bg-bg-tertiary border border-border-primary flex items-center justify-center text-xs font-bold text-text-primary">
+          {iconText}
+        </span>
+        <div>
+          <p className="text-sm font-semibold text-text-primary">{tool.tool_name}</p>
+          {tool.version && <p className="text-xs text-text-muted">v{tool.version}</p>}
+        </div>
+      </div>
+      {tool.remote_id ? (
+        <div className="flex items-center gap-2 mt-2">
+          <code className="flex-1 text-sm font-mono bg-bg-primary border border-border-primary rounded px-2.5 py-1.5 text-text-primary">
+            {tool.remote_id}
+          </code>
+          <button
+            onClick={handleCopy}
+            className="text-xs px-2.5 py-1.5 rounded bg-bg-tertiary border border-border-primary text-text-secondary hover:text-text-primary hover:bg-border-primary transition-colors cursor-pointer"
+            title="Copy ID"
+          >
+            {copied ? (
+              <svg className="w-4 h-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+              </svg>
+            )}
+          </button>
+        </div>
+      ) : (
+        <p className="text-xs text-text-muted mt-2">ID not available</p>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reusable sub-components (dark themed)
 // ---------------------------------------------------------------------------
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
-      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-        <h2 className="text-sm font-semibold text-gray-700">{title}</h2>
+    <div className="bg-bg-secondary rounded-lg border border-border-primary mb-6 overflow-hidden">
+      <div className="px-4 py-3 bg-bg-tertiary border-b border-border-primary">
+        <h2 className="text-sm font-semibold text-text-secondary">{title}</h2>
       </div>
       <div className="p-4">{children}</div>
     </div>
@@ -183,20 +266,20 @@ function Grid({ children }: { children: React.ReactNode }) {
 function Field({ label, value }: { label: string; value: string | undefined | null }) {
   return (
     <div>
-      <span className="text-xs text-gray-500 uppercase">{label}</span>
-      <p className="text-sm text-gray-800 mt-0.5">{value || '—'}</p>
+      <span className="text-xs text-text-muted uppercase">{label}</span>
+      <p className="text-sm text-text-primary mt-0.5">{value || '—'}</p>
     </div>
   );
 }
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+    <th className="px-4 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
       {children}
     </th>
   );
 }
 
 function Td({ children }: { children: React.ReactNode }) {
-  return <td className="px-4 py-2 text-gray-700">{children}</td>;
+  return <td className="px-4 py-2 text-text-secondary">{children}</td>;
 }

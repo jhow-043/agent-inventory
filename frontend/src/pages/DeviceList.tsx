@@ -1,4 +1,4 @@
-// Device list page with hostname and OS search filters.
+// Device list page with dark theme, hostname and OS search filters.
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -18,7 +18,7 @@ export default function DeviceList() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-gray-900 mb-6">Devices</h1>
+      <h1 className="text-xl font-semibold text-text-primary mb-6">Devices</h1>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -27,76 +27,76 @@ export default function DeviceList() {
           placeholder="Search hostname..."
           value={hostname}
           onChange={(e) => setHostname(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-2 text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="bg-bg-secondary border border-border-primary rounded px-3 py-2 text-sm text-text-primary placeholder-text-muted w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-accent"
         />
         <input
           type="text"
           placeholder="Filter by OS..."
           value={os}
           onChange={(e) => setOs(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-2 text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="bg-bg-secondary border border-border-primary rounded px-3 py-2 text-sm text-text-primary placeholder-text-muted w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-accent"
         />
       </div>
 
-      {isLoading && <p className="text-gray-500">Loading...</p>}
-      {error && <p className="text-red-600">Failed to load devices.</p>}
+      {isLoading && <p className="text-text-muted">Loading...</p>}
+      {error && <p className="text-danger">Failed to load devices.</p>}
 
       {!isLoading && !error && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="bg-bg-secondary rounded-lg border border-border-primary overflow-hidden">
+          <table className="min-w-full divide-y divide-border-primary">
+            <thead className="bg-bg-tertiary">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
                   Hostname
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
                   OS
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
                   Agent
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
                   Last Seen
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
                   Status
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
+            <tbody className="divide-y divide-border-primary">
               {devices.map((d) => {
                 const online =
                   Date.now() - new Date(d.last_seen).getTime() < 60 * 60 * 1000;
                 return (
-                  <tr key={d.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={d.id} className="hover:bg-bg-tertiary transition-colors">
                     <td className="px-4 py-3 text-sm">
                       <Link
                         to={`/devices/${d.id}`}
-                        className="text-blue-600 hover:underline font-medium"
+                        className="text-accent hover:underline font-medium"
                       >
                         {d.hostname}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                    <td className="px-4 py-3 text-sm text-text-secondary">
                       {d.os_name} {d.os_version}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-text-muted">
                       {d.agent_version || '—'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-text-muted">
                       {new Date(d.last_seen).toLocaleString()}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                           online
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-600'
+                            ? 'bg-success/15 text-success'
+                            : 'bg-bg-tertiary text-text-muted'
                         }`}
                       >
                         <span
                           className={`w-1.5 h-1.5 rounded-full ${
-                            online ? 'bg-green-500' : 'bg-gray-400'
+                            online ? 'bg-success' : 'bg-text-muted'
                           }`}
                         />
                         {online ? 'Online' : 'Offline'}
@@ -107,7 +107,7 @@ export default function DeviceList() {
               })}
               {devices.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-text-muted">
                     No devices found.
                   </td>
                 </tr>

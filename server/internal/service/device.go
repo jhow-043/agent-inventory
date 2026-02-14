@@ -59,6 +59,10 @@ func (s *DeviceService) GetDeviceDetail(ctx context.Context, id uuid.UUID) (*dto
 	if err != nil {
 		software = []models.InstalledSoftware{}
 	}
+	remoteTools, err := s.deviceRepo.GetRemoteTools(ctx, id)
+	if err != nil {
+		remoteTools = []models.RemoteTool{}
+	}
 
 	return &dto.DeviceDetailResponse{
 		Device:            *device,
@@ -66,5 +70,6 @@ func (s *DeviceService) GetDeviceDetail(ctx context.Context, id uuid.UUID) (*dto
 		Disks:             disks,
 		NetworkInterfaces: network,
 		InstalledSoftware: software,
+		RemoteTools:       remoteTools,
 	}, nil
 }

@@ -9,20 +9,20 @@ import (
 
 // Device represents a managed Windows workstation.
 type Device struct {
-	ID             uuid.UUID  `json:"id" db:"id"`
-	Hostname       string     `json:"hostname" db:"hostname"`
-	SerialNumber   string     `json:"serial_number" db:"serial_number"`
-	OSName         string     `json:"os_name" db:"os_name"`
-	OSVersion      string     `json:"os_version" db:"os_version"`
-	OSBuild        string     `json:"os_build" db:"os_build"`
-	OSArch         string     `json:"os_arch" db:"os_arch"`
-	LastBootTime   *time.Time `json:"last_boot_time,omitempty" db:"last_boot_time"`
-	LoggedInUser   string     `json:"logged_in_user" db:"logged_in_user"`
-	AgentVersion   string     `json:"agent_version" db:"agent_version"`
-	LicenseStatus  string     `json:"license_status" db:"license_status"`
-	LastSeen       time.Time  `json:"last_seen" db:"last_seen"`
-	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
+	ID            uuid.UUID  `json:"id" db:"id"`
+	Hostname      string     `json:"hostname" db:"hostname"`
+	SerialNumber  string     `json:"serial_number" db:"serial_number"`
+	OSName        string     `json:"os_name" db:"os_name"`
+	OSVersion     string     `json:"os_version" db:"os_version"`
+	OSBuild       string     `json:"os_build" db:"os_build"`
+	OSArch        string     `json:"os_arch" db:"os_arch"`
+	LastBootTime  *time.Time `json:"last_boot_time,omitempty" db:"last_boot_time"`
+	LoggedInUser  string     `json:"logged_in_user" db:"logged_in_user"`
+	AgentVersion  string     `json:"agent_version" db:"agent_version"`
+	LicenseStatus string     `json:"license_status" db:"license_status"`
+	LastSeen      time.Time  `json:"last_seen" db:"last_seen"`
+	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // DeviceToken stores the hashed authentication token for an agent.
@@ -87,6 +87,15 @@ type InstalledSoftware struct {
 }
 
 // User represents a dashboard user account.
+type RemoteTool struct {
+	ID        uuid.UUID `json:"id" db:"id"`
+	DeviceID  uuid.UUID `json:"device_id" db:"device_id"`
+	ToolName  string    `json:"tool_name" db:"tool_name"`
+	RemoteID  string    `json:"remote_id" db:"remote_id"`
+	Version   string    `json:"version" db:"version"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
 type User struct {
 	ID           uuid.UUID `json:"id" db:"id"`
 	Username     string    `json:"username" db:"username"`
