@@ -14,19 +14,6 @@ function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-// Tool brand colors for visual distinction
-const toolColors: Record<string, string> = {
-  TeamViewer: 'border-blue-500/30 bg-blue-500/5',
-  AnyDesk: 'border-red-500/30 bg-red-500/5',
-  RustDesk: 'border-orange-500/30 bg-orange-500/5',
-};
-
-const toolIcons: Record<string, string> = {
-  TeamViewer: 'TV',
-  AnyDesk: 'AD',
-  RustDesk: 'RD',
-};
-
 export default function DeviceDetail() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useQuery({
@@ -52,9 +39,9 @@ export default function DeviceDetail() {
       {/* Remote Access Tools */}
       <Section title="Remote Access">
         {remote_tools && remote_tools.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="divide-y divide-border-primary">
             {remote_tools.map((tool) => (
-              <RemoteToolCard key={tool.id} tool={tool} />
+              <RemoteToolRow key={tool.id} tool={tool} />
             ))}
           </div>
         ) : (
@@ -190,13 +177,16 @@ export default function DeviceDetail() {
 }
 
 // ---------------------------------------------------------------------------
-// Remote Tool Card with copy-to-clipboard
+// Remote Tool Row — compact list item with copy-to-clipboard
 // ---------------------------------------------------------------------------
 
-function RemoteToolCard({ tool }: { tool: RemoteTool }) {
+function RemoteToolRow({ tool }: { tool: RemoteTool }) {
   const [copied, setCopied] = useState(false);
-  const colorClass = toolColors[tool.tool_name] ?? 'border-border-secondary bg-bg-tertiary';
-  const iconText = toolIcons[tool.tool_name] ?? tool.tool_name.substring(0, 2).toUpperCase();
+  const dotColor: Record<string, string> = {
+    TeamViewer: 'bg-blue-500',
+    AnyDesk: 'bg-red-500',
+    RustDesk: 'bg-orange-500',
+  };
 
   const handleCopy = async () => {
     if (!tool.remote_id) return;
@@ -206,39 +196,35 @@ function RemoteToolCard({ tool }: { tool: RemoteTool }) {
   };
 
   return (
-    <div className={`rounded-lg border p-4 ${colorClass}`}>
-      <div className="flex items-center gap-3 mb-2">
-        <span className="w-9 h-9 rounded-lg bg-bg-tertiary border border-border-primary flex items-center justify-center text-xs font-bold text-text-primary">
-          {iconText}
-        </span>
-        <div>
-          <p className="text-sm font-semibold text-text-primary">{tool.tool_name}</p>
-          {tool.version && <p className="text-xs text-text-muted">v{tool.version}</p>}
-        </div>
-      </div>
+    <div className="flex items-center gap-4 py-2.5 px-1">
+      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dotColor[tool.tool_name] ?? 'bg-text-muted'}`} />
+      <span className="text-sm font-medium text-text-primary w-28 shrink-0">{tool.tool_name}</span>
+      {tool.version && (
+        <span className="text-xs text-text-muted w-32 shrink-0">v{tool.version}</span>
+      )}
       {tool.remote_id ? (
-        <div className="flex items-center gap-2 mt-2">
-          <code className="flex-1 text-sm font-mono bg-bg-primary border border-border-primary rounded px-2.5 py-1.5 text-text-primary">
+        <div className="flex items-center gap-2">
+          <code className="text-sm font-mono bg-bg-primary border border-border-primary rounded px-2 py-0.5 text-text-primary">
             {tool.remote_id}
           </code>
           <button
             onClick={handleCopy}
-            className="text-xs px-2.5 py-1.5 rounded bg-bg-tertiary border border-border-primary text-text-secondary hover:text-text-primary hover:bg-border-primary transition-colors cursor-pointer"
+            className="text-xs px-2 py-1 rounded bg-bg-tertiary border border-border-primary text-text-secondary hover:text-text-primary hover:bg-border-primary transition-colors cursor-pointer"
             title="Copy ID"
           >
             {copied ? (
-              <svg className="w-4 h-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-3.5 h-3.5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
               </svg>
             )}
           </button>
         </div>
       ) : (
-        <p className="text-xs text-text-muted mt-2">ID not available</p>
+        <span className="text-xs text-text-muted">ID not available</span>
       )}
     </div>
   );

@@ -2,10 +2,13 @@ package collector
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/sys/windows/registry"
 
@@ -199,6 +202,16 @@ func (c *Collector) detectRustDesk() *dto.RemoteToolData {
 		}
 	}
 
+	// Fallback: run rustdesk.exe --get-id (works on RustDesk v1.4+ where config uses enc_id)
+	if id := c.getRustDeskIDFromCLI(); id != "" {
+		c.logger.Info("detected RustDesk via CLI --get-id", "remote_id", id, "version", version)
+		return &dto.RemoteToolData{
+			ToolName: "RustDesk",
+			RemoteID: id,
+			Version:  version,
+		}
+	}
+
 	// Installed but no ID found
 	if version != "" {
 		c.logger.Info("detected RustDesk but could not find remote ID", "version", version)
@@ -210,6 +223,63 @@ func (c *Collector) detectRustDesk() *dto.RemoteToolData {
 	}
 
 	return nil
+}
+
+// getRustDeskIDFromCLI runs "rustdesk.exe --get-id" and returns the ID from stdout.
+// This is required for RustDesk v1.4+ where the config uses enc_id (encrypted) instead of plain id.
+func (c *Collector) getRustDeskIDFromCLI() string {
+	// Try common install locations
+	candidates := []string{
+		filepath.Join(os.Getenv("ProgramFiles"), "RustDesk", "rustdesk.exe"),
+		filepath.Join(os.Getenv("ProgramFiles(x86)"), "RustDesk", "rustdesk.exe"),
+	}
+
+	// Also check uninstall registry for InstallLocation
+	uninstallPaths := []string{
+		`SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`,
+		`SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall`,
+	}
+	for _, root := range []registry.Key{registry.LOCAL_MACHINE, registry.CURRENT_USER} {
+		for _, path := range uninstallPaths {
+			key, err := registry.OpenKey(root, path, registry.READ)
+			if err != nil {
+				continue
+			}
+			subkeys, _ := key.ReadSubKeyNames(-1)
+			key.Close()
+			for _, name := range subkeys {
+				sk, err := registry.OpenKey(root, path+`\`+name, registry.READ)
+				if err != nil {
+					continue
+				}
+				displayName, _, _ := sk.GetStringValue("DisplayName")
+				if strings.Contains(strings.ToLower(displayName), "rustdesk") {
+					if loc, _, err := sk.GetStringValue("InstallLocation"); err == nil && loc != "" {
+						candidates = append(candidates, filepath.Join(loc, "rustdesk.exe"))
+					}
+				}
+				sk.Close()
+			}
+		}
+	}
+
+	for _, exePath := range candidates {
+		if _, err := os.Stat(exePath); err != nil {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		out, err := exec.CommandContext(ctx, exePath, "--get-id").Output()
+		cancel()
+		if err != nil {
+			c.logger.Debug("rustdesk --get-id failed", "path", exePath, "error", err)
+			continue
+		}
+		id := strings.TrimSpace(string(out))
+		if id != "" {
+			return id
+		}
+	}
+	return ""
 }
 
 // readRustDeskID reads the id field from a RustDesk TOML config file.
