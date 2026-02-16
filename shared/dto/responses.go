@@ -34,6 +34,19 @@ type DashboardStatsResponse struct {
 	Offline int `json:"offline"`
 }
 
+// UserResponse is a single user returned by the API (no password hash).
+type UserResponse struct {
+	ID        uuid.UUID `json:"id"`
+	Username  string    `json:"username"`
+	CreatedAt string    `json:"created_at"`
+}
+
+// UserListResponse is returned by GET /api/v1/users.
+type UserListResponse struct {
+	Users []UserResponse `json:"users"`
+	Total int            `json:"total"`
+}
+
 // EnrollResponse is returned after a successful device enrollment.
 type EnrollResponse struct {
 	DeviceID uuid.UUID `json:"device_id"`

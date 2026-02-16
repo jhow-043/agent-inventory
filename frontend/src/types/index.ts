@@ -92,3 +92,14 @@ export interface DeviceDetailResponse {
 export interface ErrorResponse {
   error: string;
 }
+
+export interface User {
+  id: string;
+  username: string;
+  created_at: string;
+}
+
+export interface UserListResponse {
+  users: User[];
+  total: number;
+}

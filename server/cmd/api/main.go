@@ -64,9 +64,10 @@ func runServer() {
 	inventoryHandler := handler.NewInventoryHandler(inventorySvc)
 	deviceHandler := handler.NewDeviceHandler(deviceSvc)
 	dashboardHandler := handler.NewDashboardHandler(dashboardSvc)
+	userHandler := handler.NewUserHandler(authSvc)
 
-	// ── Router ───────────────────────────────────────────────────────
-	r := router.Setup(cfg, healthHandler, inventoryHandler, authHandler, deviceHandler, dashboardHandler, tokenRepo)
+	// ── Router ───────────────────────────────────────────────────
+	r := router.Setup(cfg, healthHandler, inventoryHandler, authHandler, deviceHandler, dashboardHandler, userHandler, tokenRepo)
 
 	// ── HTTP Server ──────────────────────────────────────────────────
 	srv := &http.Server{

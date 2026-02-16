@@ -20,6 +20,7 @@ func Setup(
 	authHandler *handler.AuthHandler,
 	deviceHandler *handler.DeviceHandler,
 	dashboardHandler *handler.DashboardHandler,
+	userHandler *handler.UserHandler,
 	tokenRepo *repository.TokenRepository,
 ) *gin.Engine {
 	if cfg.LogLevel != slog.LevelDebug {
@@ -54,6 +55,9 @@ func Setup(
 			protected.GET("/dashboard/stats", dashboardHandler.GetStats)
 			protected.GET("/devices", deviceHandler.ListDevices)
 			protected.GET("/devices/:id", deviceHandler.GetDevice)
+			protected.GET("/users", userHandler.ListUsers)
+			protected.POST("/users", userHandler.CreateUser)
+			protected.DELETE("/users/:id", userHandler.DeleteUser)
 		}
 	}
 

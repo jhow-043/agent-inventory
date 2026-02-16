@@ -133,3 +133,17 @@ func (s *AuthService) CreateUser(ctx context.Context, username, password string)
 
 	return s.userRepo.Create(ctx, user)
 }
+
+// ListUsers returns all dashboard users.
+func (s *AuthService) ListUsers(ctx context.Context) ([]models.User, error) {
+	return s.userRepo.List(ctx)
+}
+
+// DeleteUser deletes a dashboard user by ID.
+// It prevents a user from deleting themselves.
+func (s *AuthService) DeleteUser(ctx context.Context, requestingUserID, targetUserID uuid.UUID) error {
+	if requestingUserID == targetUserID {
+		return fmt.Errorf("cannot delete your own account")
+	}
+	return s.userRepo.Delete(ctx, targetUserID)
+}
