@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -80,55 +81,88 @@ func (r *InventoryRepository) Save(ctx context.Context, deviceID uuid.UUID, req 
 		return fmt.Errorf("upsert hardware: %w", err)
 	}
 
-	// Replace disks
+	// Replace disks (batch insert)
 	if _, err = tx.ExecContext(ctx, "DELETE FROM disks WHERE device_id = $1", deviceID); err != nil {
 		return fmt.Errorf("delete disks: %w", err)
 	}
-	for _, d := range req.Disks {
-		if _, err = tx.ExecContext(ctx, `
-			INSERT INTO disks (id, device_id, model, size_bytes, media_type, serial_number, interface_type)
-			VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6)
-		`, deviceID, d.Model, d.SizeBytes, d.MediaType, d.SerialNumber, d.InterfaceType); err != nil {
-			return fmt.Errorf("insert disk: %w", err)
+	if len(req.Disks) > 0 {
+		vals := make([]string, 0, len(req.Disks))
+		args := []interface{}{}
+		for i, d := range req.Disks {
+			base := i*9 + 1
+			vals = append(vals, fmt.Sprintf("(uuid_generate_v4(), $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+				base, base+1, base+2, base+3, base+4, base+5, base+6, base+7, base+8))
+			args = append(args, deviceID, d.Model, d.SizeBytes, d.MediaType, d.SerialNumber, d.InterfaceType,
+				d.DriveLetter, d.PartitionSizeBytes, d.FreeSpaceBytes)
+		}
+		q := "INSERT INTO disks (id, device_id, model, size_bytes, media_type, serial_number, interface_type, drive_letter, partition_size_bytes, free_space_bytes) VALUES " + strings.Join(vals, ", ")
+		if _, err = tx.ExecContext(ctx, q, args...); err != nil {
+			return fmt.Errorf("batch insert disks: %w", err)
 		}
 	}
 
-	// Replace network interfaces
+	// Replace network interfaces (batch insert)
 	if _, err = tx.ExecContext(ctx, "DELETE FROM network_interfaces WHERE device_id = $1", deviceID); err != nil {
 		return fmt.Errorf("delete network interfaces: %w", err)
 	}
-	for _, n := range req.Network {
-		if _, err = tx.ExecContext(ctx, `
-			INSERT INTO network_interfaces (id, device_id, name, mac_address, ipv4_address, ipv6_address, speed_mbps, is_physical)
-			VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7)
-		`, deviceID, n.Name, n.MACAddress, n.IPv4Address, n.IPv6Address, n.SpeedMbps, n.IsPhysical); err != nil {
-			return fmt.Errorf("insert network interface: %w", err)
+	if len(req.Network) > 0 {
+		vals := make([]string, 0, len(req.Network))
+		args := []interface{}{}
+		for i, n := range req.Network {
+			base := i*7 + 1
+			vals = append(vals, fmt.Sprintf("(uuid_generate_v4(), $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+				base, base+1, base+2, base+3, base+4, base+5, base+6))
+			args = append(args, deviceID, n.Name, n.MACAddress, n.IPv4Address, n.IPv6Address, n.SpeedMbps, n.IsPhysical)
+		}
+		q := "INSERT INTO network_interfaces (id, device_id, name, mac_address, ipv4_address, ipv6_address, speed_mbps, is_physical) VALUES " + strings.Join(vals, ", ")
+		if _, err = tx.ExecContext(ctx, q, args...); err != nil {
+			return fmt.Errorf("batch insert network interfaces: %w", err)
 		}
 	}
 
-	// Replace installed software
+	// Replace installed software (batch insert — chunked to avoid param limit)
 	if _, err = tx.ExecContext(ctx, "DELETE FROM installed_software WHERE device_id = $1", deviceID); err != nil {
 		return fmt.Errorf("delete installed software: %w", err)
 	}
-	for _, s := range req.Software {
-		if _, err = tx.ExecContext(ctx, `
-			INSERT INTO installed_software (id, device_id, name, version, vendor, install_date)
-			VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5)
-		`, deviceID, s.Name, s.Version, s.Vendor, s.InstallDate); err != nil {
-			return fmt.Errorf("insert software: %w", err)
+	if len(req.Software) > 0 {
+		const chunkSize = 200 // ~1000 params per chunk (5 fields each)
+		for start := 0; start < len(req.Software); start += chunkSize {
+			end := start + chunkSize
+			if end > len(req.Software) {
+				end = len(req.Software)
+			}
+			chunk := req.Software[start:end]
+			vals := make([]string, 0, len(chunk))
+			args := []interface{}{}
+			for i, s := range chunk {
+				base := i*5 + 1
+				vals = append(vals, fmt.Sprintf("(uuid_generate_v4(), $%d, $%d, $%d, $%d, $%d)",
+					base, base+1, base+2, base+3, base+4))
+				args = append(args, deviceID, s.Name, s.Version, s.Vendor, s.InstallDate)
+			}
+			q := "INSERT INTO installed_software (id, device_id, name, version, vendor, install_date) VALUES " + strings.Join(vals, ", ")
+			if _, err = tx.ExecContext(ctx, q, args...); err != nil {
+				return fmt.Errorf("batch insert software: %w", err)
+			}
 		}
 	}
 
-	// Replace remote tools
+	// Replace remote tools (batch insert)
 	if _, err = tx.ExecContext(ctx, "DELETE FROM remote_tools WHERE device_id = $1", deviceID); err != nil {
 		return fmt.Errorf("delete remote tools: %w", err)
 	}
-	for _, rt := range req.RemoteTools {
-		if _, err = tx.ExecContext(ctx, `
-			INSERT INTO remote_tools (id, device_id, tool_name, remote_id, version)
-			VALUES (uuid_generate_v4(), $1, $2, $3, $4)
-		`, deviceID, rt.ToolName, rt.RemoteID, rt.Version); err != nil {
-			return fmt.Errorf("insert remote tool: %w", err)
+	if len(req.RemoteTools) > 0 {
+		vals := make([]string, 0, len(req.RemoteTools))
+		args := []interface{}{}
+		for i, rt := range req.RemoteTools {
+			base := i*4 + 1
+			vals = append(vals, fmt.Sprintf("(uuid_generate_v4(), $%d, $%d, $%d, $%d)",
+				base, base+1, base+2, base+3))
+			args = append(args, deviceID, rt.ToolName, rt.RemoteID, rt.Version)
+		}
+		q := "INSERT INTO remote_tools (id, device_id, tool_name, remote_id, version) VALUES " + strings.Join(vals, ", ")
+		if _, err = tx.ExecContext(ctx, q, args...); err != nil {
+			return fmt.Errorf("batch insert remote tools: %w", err)
 		}
 	}
 

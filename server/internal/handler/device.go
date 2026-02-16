@@ -3,10 +3,12 @@ package handler
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"inventario/server/internal/repository"
 	"inventario/server/internal/service"
 	"inventario/shared/dto"
 )
@@ -21,12 +23,22 @@ func NewDeviceHandler(svc *service.DeviceService) *DeviceHandler {
 	return &DeviceHandler{service: svc}
 }
 
-// ListDevices returns all devices, with optional hostname and os query filters.
+// ListDevices returns devices with pagination, sorting, and filtering.
 func (h *DeviceHandler) ListDevices(c *gin.Context) {
-	hostname := c.Query("hostname")
-	osFilter := c.Query("os")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
-	resp, err := h.service.ListDevices(c.Request.Context(), hostname, osFilter)
+	params := repository.ListParams{
+		Hostname: c.Query("hostname"),
+		OS:       c.Query("os"),
+		Status:   c.Query("status"),
+		Sort:     c.Query("sort"),
+		Order:    c.Query("order"),
+		Page:     page,
+		Limit:    limit,
+	}
+
+	resp, err := h.service.ListDevices(c.Request.Context(), params)
 	if err != nil {
 		slog.Error("failed to list devices", "error", err)
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to list devices"})

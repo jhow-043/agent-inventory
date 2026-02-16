@@ -97,34 +97,76 @@ export default function DeviceDetail() {
       )}
 
       {/* Disks */}
-      {disks.length > 0 && (
-        <Section title="Disks">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border-primary text-sm">
-              <thead className="bg-bg-tertiary">
-                <tr>
-                  <Th>Model</Th>
-                  <Th>Size</Th>
-                  <Th>Type</Th>
-                  <Th>Interface</Th>
-                  <Th>Serial</Th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-primary">
-                {disks.map((d) => (
-                  <tr key={d.id}>
-                    <Td>{d.model}</Td>
-                    <Td>{formatBytes(d.size_bytes)}</Td>
-                    <Td>{d.media_type}</Td>
-                    <Td>{d.interface_type}</Td>
-                    <Td>{d.serial_number}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Section>
-      )}
+      {disks.length > 0 && (() => {
+        const physicalDisks = disks.filter((d) => d.media_type !== 'Partition');
+        const partitions = disks.filter((d) => d.media_type === 'Partition');
+        return (
+          <>
+            {physicalDisks.length > 0 && (
+              <Section title="Physical Disks">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-border-primary text-sm">
+                    <thead className="bg-bg-tertiary">
+                      <tr>
+                        <Th>Model</Th>
+                        <Th>Size</Th>
+                        <Th>Type</Th>
+                        <Th>Interface</Th>
+                        <Th>Serial</Th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-primary">
+                      {physicalDisks.map((d) => (
+                        <tr key={d.id}>
+                          <Td>{d.model}</Td>
+                          <Td>{formatBytes(d.size_bytes)}</Td>
+                          <Td>{d.media_type}</Td>
+                          <Td>{d.interface_type}</Td>
+                          <Td>{d.serial_number}</Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Section>
+            )}
+
+            {partitions.length > 0 && (
+              <Section title="Partitions">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {partitions.map((p) => {
+                    const total = p.partition_size_bytes || 0;
+                    const free = p.free_space_bytes || 0;
+                    const used = total - free;
+                    const pct = total > 0 ? Math.round((used / total) * 100) : 0;
+                    const barColor = pct >= 90 ? 'bg-danger' : pct >= 70 ? 'bg-warning' : 'bg-accent';
+                    return (
+                      <div key={p.id} className="bg-bg-tertiary rounded-lg border border-border-primary p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-semibold text-text-primary">
+                            {p.drive_letter || '—'}
+                          </span>
+                          <span className="text-xs text-text-muted">{pct}% used</span>
+                        </div>
+                        <div className="w-full h-2 bg-bg-primary rounded-full overflow-hidden mb-2">
+                          <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <div className="flex justify-between text-xs text-text-muted">
+                          <span>{formatBytes(used)} used</span>
+                          <span>{formatBytes(free)} free</span>
+                        </div>
+                        <div className="text-xs text-text-muted mt-1">
+                          Total: {formatBytes(total)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Section>
+            )}
+          </>
+        );
+      })()}
 
       {/* Network */}
       {network_interfaces.length > 0 && (

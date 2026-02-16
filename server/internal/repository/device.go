@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -20,34 +21,99 @@ func NewDeviceRepository(db *sqlx.DB) *DeviceRepository {
 	return &DeviceRepository{db: db}
 }
 
-// List returns all devices, optionally filtered by hostname and/or OS.
-func (r *DeviceRepository) List(ctx context.Context, hostname, osFilter string) ([]models.Device, error) {
-	query := "SELECT * FROM devices WHERE 1=1"
+// ListParams holds filters, pagination, and sorting options for listing devices.
+type ListParams struct {
+	Hostname string
+	OS       string
+	Status   string // "online", "offline", or "" (all)
+	Sort     string // column name
+	Order    string // "asc" or "desc"
+	Page     int
+	Limit    int
+}
+
+// allowedSortColumns maps user-facing column names to SQL columns.
+var allowedSortColumns = map[string]string{
+	"hostname":  "hostname",
+	"os":        "os_name",
+	"last_seen": "last_seen",
+	"status":    "last_seen",
+}
+
+// ListResult holds the paginated result from List.
+type ListResult struct {
+	Devices []models.Device
+	Total   int
+}
+
+// List returns devices with filtering, sorting, and pagination.
+func (r *DeviceRepository) List(ctx context.Context, p ListParams) (*ListResult, error) {
+	var where []string
 	args := []interface{}{}
 	argIdx := 1
 
-	if hostname != "" {
-		query += fmt.Sprintf(" AND hostname ILIKE $%d", argIdx)
-		args = append(args, "%"+hostname+"%")
+	if p.Hostname != "" {
+		where = append(where, fmt.Sprintf("hostname ILIKE $%d", argIdx))
+		args = append(args, "%"+p.Hostname+"%")
 		argIdx++
 	}
-	if osFilter != "" {
-		query += fmt.Sprintf(" AND (os_name ILIKE $%d OR os_version ILIKE $%d)", argIdx, argIdx)
-		args = append(args, "%"+osFilter+"%")
+	if p.OS != "" {
+		where = append(where, fmt.Sprintf("(os_name ILIKE $%d OR os_version ILIKE $%d)", argIdx, argIdx))
+		args = append(args, "%"+p.OS+"%")
 		argIdx++
+	}
+	if p.Status == "online" {
+		where = append(where, "last_seen > NOW() - INTERVAL '1 hour'")
+	} else if p.Status == "offline" {
+		where = append(where, "last_seen <= NOW() - INTERVAL '1 hour'")
 	}
 
-	query += " ORDER BY hostname"
+	whereClause := ""
+	if len(where) > 0 {
+		whereClause = " WHERE " + strings.Join(where, " AND ")
+	}
+
+	// Count total matching rows.
+	countQuery := "SELECT COUNT(*) FROM devices" + whereClause
+	var total int
+	if err := r.db.GetContext(ctx, &total, countQuery, args...); err != nil {
+		return nil, fmt.Errorf("count devices: %w", err)
+	}
+
+	// Sorting — validate column.
+	orderCol := "hostname"
+	if col, ok := allowedSortColumns[p.Sort]; ok {
+		orderCol = col
+	}
+	orderDir := "ASC"
+	if strings.EqualFold(p.Order, "desc") {
+		orderDir = "DESC"
+	}
+
+	// Pagination defaults.
+	limit := p.Limit
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	page := p.Page
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	dataQuery := fmt.Sprintf("SELECT * FROM devices%s ORDER BY %s %s LIMIT $%d OFFSET $%d",
+		whereClause, orderCol, orderDir, argIdx, argIdx+1)
+	args = append(args, limit, offset)
 
 	var devices []models.Device
-	err := r.db.SelectContext(ctx, &devices, query, args...)
-	if err != nil {
+	if err := r.db.SelectContext(ctx, &devices, dataQuery, args...); err != nil {
 		return nil, fmt.Errorf("list devices: %w", err)
 	}
 	if devices == nil {
 		devices = []models.Device{}
 	}
-	return devices, nil
+
+	return &ListResult{Devices: devices, Total: total}, nil
 }
 
 // GetByID retrieves a single device by its primary key.

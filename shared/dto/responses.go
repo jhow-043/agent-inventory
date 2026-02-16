@@ -63,6 +63,8 @@ type EnrollResponse struct {
 type DeviceListResponse struct {
 	Devices []models.Device `json:"devices"`
 	Total   int             `json:"total"`
+	Page    int             `json:"page"`
+	Limit   int             `json:"limit"`
 }
 
 // DeviceDetailResponse is returned by GET /api/v1/devices/:id.

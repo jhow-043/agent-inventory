@@ -6,6 +6,7 @@ import { ThemeProvider } from './hooks/useTheme'
 import { SidebarProvider } from './hooks/useSidebar'
 import './index.css'
 import App from './App'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,7 +24,9 @@ createRoot(document.getElementById('root')!).render(
       <ThemeProvider>
         <AuthProvider>
           <SidebarProvider>
-            <App />
+            <ErrorBoundary>
+              <App />
+            </ErrorBoundary>
           </SidebarProvider>
         </AuthProvider>
       </ThemeProvider>

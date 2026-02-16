@@ -23,15 +23,17 @@ func NewDeviceService(repo *repository.DeviceRepository) *DeviceService {
 	return &DeviceService{deviceRepo: repo}
 }
 
-// ListDevices returns all devices, optionally filtered by hostname and OS.
-func (s *DeviceService) ListDevices(ctx context.Context, hostname, osFilter string) (*dto.DeviceListResponse, error) {
-	devices, err := s.deviceRepo.List(ctx, hostname, osFilter)
+// ListDevices returns devices with pagination, filtering, and sorting.
+func (s *DeviceService) ListDevices(ctx context.Context, p repository.ListParams) (*dto.DeviceListResponse, error) {
+	result, err := s.deviceRepo.List(ctx, p)
 	if err != nil {
 		return nil, fmt.Errorf("list devices: %w", err)
 	}
 	return &dto.DeviceListResponse{
-		Devices: devices,
-		Total:   len(devices),
+		Devices: result.Devices,
+		Total:   result.Total,
+		Page:    p.Page,
+		Limit:   p.Limit,
 	}, nil
 }
 

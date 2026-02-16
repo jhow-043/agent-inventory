@@ -52,14 +52,17 @@ type Hardware struct {
 
 // Disk represents a physical or logical disk drive.
 type Disk struct {
-	ID            uuid.UUID `json:"id" db:"id"`
-	DeviceID      uuid.UUID `json:"device_id" db:"device_id"`
-	Model         string    `json:"model" db:"model"`
-	SizeBytes     int64     `json:"size_bytes" db:"size_bytes"`
-	MediaType     string    `json:"media_type" db:"media_type"`
-	SerialNumber  string    `json:"serial_number" db:"serial_number"`
-	InterfaceType string    `json:"interface_type" db:"interface_type"`
-	CreatedAt     time.Time `json:"created_at" db:"created_at"`
+	ID                 uuid.UUID `json:"id" db:"id"`
+	DeviceID           uuid.UUID `json:"device_id" db:"device_id"`
+	Model              string    `json:"model" db:"model"`
+	SizeBytes          int64     `json:"size_bytes" db:"size_bytes"`
+	MediaType          string    `json:"media_type" db:"media_type"`
+	SerialNumber       string    `json:"serial_number" db:"serial_number"`
+	InterfaceType      string    `json:"interface_type" db:"interface_type"`
+	DriveLetter        string    `json:"drive_letter" db:"drive_letter"`
+	PartitionSizeBytes int64     `json:"partition_size_bytes" db:"partition_size_bytes"`
+	FreeSpaceBytes     int64     `json:"free_space_bytes" db:"free_space_bytes"`
+	CreatedAt          time.Time `json:"created_at" db:"created_at"`
 }
 
 // NetworkInterface represents a network adapter.

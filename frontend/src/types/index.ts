@@ -39,6 +39,9 @@ export interface Disk {
   media_type: string;
   serial_number: string;
   interface_type: string;
+  drive_letter: string;
+  partition_size_bytes: number;
+  free_space_bytes: number;
 }
 
 export interface NetworkInterface {
@@ -72,6 +75,8 @@ export interface RemoteTool {
 export interface DeviceListResponse {
   devices: Device[];
   total: number;
+  page: number;
+  limit: number;
 }
 
 export interface DashboardStats {

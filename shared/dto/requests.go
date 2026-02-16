@@ -43,11 +43,14 @@ type HardwareData struct {
 
 // DiskData contains disk drive information.
 type DiskData struct {
-	Model         string `json:"model" binding:"required"`
-	SizeBytes     int64  `json:"size_bytes" binding:"required"`
-	MediaType     string `json:"media_type"`
-	SerialNumber  string `json:"serial_number"`
-	InterfaceType string `json:"interface_type"`
+	Model              string `json:"model" binding:"required"`
+	SizeBytes          int64  `json:"size_bytes" binding:"required"`
+	MediaType          string `json:"media_type"`
+	SerialNumber       string `json:"serial_number"`
+	InterfaceType      string `json:"interface_type"`
+	DriveLetter        string `json:"drive_letter"`
+	PartitionSizeBytes int64  `json:"partition_size_bytes"`
+	FreeSpaceBytes     int64  `json:"free_space_bytes"`
 }
 
 // NetworkData contains network interface information.
