@@ -3,6 +3,7 @@ package router
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -31,6 +32,7 @@ func Setup(
 	r.Use(gin.Recovery())
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Logging())
+	r.Use(middleware.SecurityHeaders())
 	r.Use(middleware.CORS(cfg.CORSOrigins))
 
 	// Health probes — no authentication required.
@@ -41,17 +43,18 @@ func Setup(
 	api := r.Group("/api/v1")
 	{
 		// Agent endpoints.
-		api.POST("/enroll", authHandler.Enroll)
+		api.POST("/enroll", middleware.RateLimit(10, time.Minute), authHandler.Enroll)
 		api.POST("/inventory", middleware.DeviceAuth(tokenRepo), inventoryHandler.SubmitInventory)
 
 		// Dashboard authentication.
-		api.POST("/auth/login", authHandler.Login)
+		api.POST("/auth/login", middleware.RateLimit(5, time.Minute), authHandler.Login)
 		api.POST("/auth/logout", authHandler.Logout)
 
 		// Dashboard data endpoints — JWT protected.
 		protected := api.Group("")
 		protected.Use(middleware.JWTAuth(cfg.JWTSecret))
 		{
+			protected.GET("/auth/me", authHandler.Me)
 			protected.GET("/dashboard/stats", dashboardHandler.GetStats)
 			protected.GET("/devices", deviceHandler.ListDevices)
 			protected.GET("/devices/:id", deviceHandler.GetDevice)

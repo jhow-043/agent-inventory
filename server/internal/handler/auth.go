@@ -72,3 +72,13 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	c.SetCookie("session", "", -1, "/", "", false, true)
 	c.JSON(http.StatusOK, dto.MessageResponse{Message: "logout successful"})
 }
+
+// Me returns the currently authenticated user's information.
+func (h *AuthHandler) Me(c *gin.Context) {
+	sub, _ := c.Get("user_id")
+	username, _ := c.Get("username")
+	c.JSON(http.StatusOK, dto.MeResponse{
+		ID:       sub.(string),
+		Username: username.(string),
+	})
+}

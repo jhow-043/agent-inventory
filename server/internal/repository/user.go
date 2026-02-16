@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -50,8 +51,18 @@ func (r *UserRepository) List(ctx context.Context) ([]models.User, error) {
 	return users, nil
 }
 
-// Delete removes a user by ID.
+// Delete removes a user by ID. Returns an error if the user does not exist.
 func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM users WHERE id = $1", id)
-	return err
+	result, err := r.db.ExecContext(ctx, "DELETE FROM users WHERE id = $1", id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("user not found")
+	}
+	return nil
 }

@@ -55,7 +55,7 @@ function MoonIcon({ className }: { className?: string }) {
 }
 
 export default function Layout() {
-  const { logout } = useAuth();
+  const { logout, username } = useAuth();
   const { collapsed, toggle: toggleSidebar } = useSidebar();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -120,8 +120,19 @@ export default function Layout() {
           ))}
         </nav>
 
-        {/* Footer: Theme toggle + Logout */}
+        {/* Footer: User + Theme toggle + Logout */}
         <div className={`border-t border-border-primary ${collapsed ? 'p-2' : 'p-3'} space-y-1`}>
+          {/* Logged-in user */}
+          <div
+            className={`flex items-center gap-3 py-2.5 text-sm ${collapsed ? 'justify-center px-0' : 'px-3'}`}
+            title={collapsed && username ? username : undefined}
+          >
+            <div className="w-5 h-5 flex-shrink-0 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-bold uppercase">
+              {username ? username[0] : '?'}
+            </div>
+            {!collapsed && <span className="text-text-primary font-medium truncate">{username ?? '...'}</span>}
+          </div>
+
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}

@@ -16,6 +16,12 @@ type MessageResponse struct {
 	Message string `json:"message"`
 }
 
+// MeResponse is returned by GET /api/v1/auth/me.
+type MeResponse struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+}
+
 // HealthResponse is returned by the liveness probe.
 type HealthResponse struct {
 	Status string `json:"status"`

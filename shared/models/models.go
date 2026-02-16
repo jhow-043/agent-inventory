@@ -86,7 +86,7 @@ type InstalledSoftware struct {
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
 
-// User represents a dashboard user account.
+// RemoteTool represents a remote access tool installed on a device.
 type RemoteTool struct {
 	ID        uuid.UUID `json:"id" db:"id"`
 	DeviceID  uuid.UUID `json:"device_id" db:"device_id"`

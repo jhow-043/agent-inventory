@@ -15,11 +15,13 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /app/serv
 
 FROM alpine:3.20
 
-RUN apk --no-cache add ca-certificates wget tzdata
+RUN apk --no-cache add ca-certificates wget tzdata \
+    && adduser -D -h /app appuser
 
 COPY --from=builder /app/server /app/server
 
 WORKDIR /app
+USER appuser
 
 EXPOSE 8080
 
