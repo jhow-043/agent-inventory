@@ -74,6 +74,12 @@ export interface DeviceListResponse {
   total: number;
 }
 
+export interface DashboardStats {
+  total: number;
+  online: number;
+  offline: number;
+}
+
 export interface DeviceDetailResponse {
   device: Device;
   hardware: Hardware | null;

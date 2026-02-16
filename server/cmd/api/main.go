@@ -50,20 +50,23 @@ func runServer() {
 	userRepo := repository.NewUserRepository(db)
 	deviceRepo := repository.NewDeviceRepository(db)
 	inventoryRepo := repository.NewInventoryRepository(db)
+	dashboardRepo := repository.NewDashboardRepository(db)
 
 	// ── Services ─────────────────────────────────────────────────────
 	authSvc := service.NewAuthService(db, userRepo, tokenRepo, cfg.JWTSecret)
 	inventorySvc := service.NewInventoryService(inventoryRepo)
 	deviceSvc := service.NewDeviceService(deviceRepo)
+	dashboardSvc := service.NewDashboardService(dashboardRepo)
 
 	// ── Handlers ─────────────────────────────────────────────────────
 	healthHandler := handler.NewHealthHandler(db)
 	authHandler := handler.NewAuthHandler(authSvc, cfg.EnrollmentKey)
 	inventoryHandler := handler.NewInventoryHandler(inventorySvc)
 	deviceHandler := handler.NewDeviceHandler(deviceSvc)
+	dashboardHandler := handler.NewDashboardHandler(dashboardSvc)
 
 	// ── Router ───────────────────────────────────────────────────────
-	r := router.Setup(cfg, healthHandler, inventoryHandler, authHandler, deviceHandler, tokenRepo)
+	r := router.Setup(cfg, healthHandler, inventoryHandler, authHandler, deviceHandler, dashboardHandler, tokenRepo)
 
 	// ── HTTP Server ──────────────────────────────────────────────────
 	srv := &http.Server{

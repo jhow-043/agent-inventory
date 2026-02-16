@@ -39,11 +39,22 @@ export default function DeviceDetail() {
       {/* Remote Access Tools */}
       <Section title="Remote Access">
         {remote_tools && remote_tools.length > 0 ? (
-          <div className="divide-y divide-border-primary">
-            {remote_tools.map((tool) => (
-              <RemoteToolRow key={tool.id} tool={tool} />
-            ))}
-          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-text-muted uppercase">
+                <th className="pb-2 pr-4 font-medium w-8"></th>
+                <th className="pb-2 pr-4 font-medium">Tool</th>
+                <th className="pb-2 pr-4 font-medium">Version</th>
+                <th className="pb-2 pr-4 font-medium">ID</th>
+                <th className="pb-2 font-medium w-10"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-primary">
+              {remote_tools.map((tool) => (
+                <RemoteToolRow key={tool.id} tool={tool} />
+              ))}
+            </tbody>
+          </table>
         ) : (
           <p className="text-sm text-text-muted">No remote access tools detected.</p>
         )}
@@ -196,17 +207,23 @@ function RemoteToolRow({ tool }: { tool: RemoteTool }) {
   };
 
   return (
-    <div className="flex items-center gap-4 py-2.5 px-1">
-      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dotColor[tool.tool_name] ?? 'bg-text-muted'}`} />
-      <span className="text-sm font-medium text-text-primary w-28 shrink-0">{tool.tool_name}</span>
-      {tool.version && (
-        <span className="text-xs text-text-muted w-32 shrink-0">v{tool.version}</span>
-      )}
-      {tool.remote_id ? (
-        <div className="flex items-center gap-2">
+    <tr>
+      <td className="py-2.5 pr-4">
+        <span className={`inline-block w-2.5 h-2.5 rounded-full ${dotColor[tool.tool_name] ?? 'bg-text-muted'}`} />
+      </td>
+      <td className="py-2.5 pr-4 font-medium text-text-primary">{tool.tool_name}</td>
+      <td className="py-2.5 pr-4 text-xs text-text-muted">{tool.version ? `v${tool.version}` : '—'}</td>
+      <td className="py-2.5 pr-4">
+        {tool.remote_id ? (
           <code className="text-sm font-mono bg-bg-primary border border-border-primary rounded px-2 py-0.5 text-text-primary">
             {tool.remote_id}
           </code>
+        ) : (
+          <span className="text-xs text-text-muted">ID not available</span>
+        )}
+      </td>
+      <td className="py-2.5">
+        {tool.remote_id && (
           <button
             onClick={handleCopy}
             className="text-xs px-2 py-1 rounded bg-bg-tertiary border border-border-primary text-text-secondary hover:text-text-primary hover:bg-border-primary transition-colors cursor-pointer"
@@ -222,11 +239,9 @@ function RemoteToolRow({ tool }: { tool: RemoteTool }) {
               </svg>
             )}
           </button>
-        </div>
-      ) : (
-        <span className="text-xs text-text-muted">ID not available</span>
-      )}
-    </div>
+        )}
+      </td>
+    </tr>
   );
 }
 

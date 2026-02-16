@@ -1,18 +1,13 @@
 // Dashboard page with dark theme showing total devices and online/offline counts.
 
 import { useQuery } from '@tanstack/react-query';
-import { getDevices } from '../api/devices';
+import { getStats } from '../api/dashboard';
 import { Link } from 'react-router-dom';
-
-function isOnline(lastSeen: string): boolean {
-  const diff = Date.now() - new Date(lastSeen).getTime();
-  return diff < 60 * 60 * 1000;
-}
 
 export default function Dashboard() {
   const { data, isLoading, error } = useQuery({
-    queryKey: ['devices'],
-    queryFn: () => getDevices(),
+    queryKey: ['dashboard-stats'],
+    queryFn: getStats,
   });
 
   if (isLoading) {
@@ -23,10 +18,9 @@ export default function Dashboard() {
     return <p className="text-danger">Failed to load dashboard data.</p>;
   }
 
-  const devices = data?.devices ?? [];
-  const total = devices.length;
-  const online = devices.filter((d) => isOnline(d.last_seen)).length;
-  const offline = total - online;
+  const total = data?.total ?? 0;
+  const online = data?.online ?? 0;
+  const offline = data?.offline ?? 0;
 
   return (
     <div>

@@ -19,6 +19,7 @@ func Setup(
 	inventoryHandler *handler.InventoryHandler,
 	authHandler *handler.AuthHandler,
 	deviceHandler *handler.DeviceHandler,
+	dashboardHandler *handler.DashboardHandler,
 	tokenRepo *repository.TokenRepository,
 ) *gin.Engine {
 	if cfg.LogLevel != slog.LevelDebug {
@@ -50,6 +51,7 @@ func Setup(
 		protected := api.Group("")
 		protected.Use(middleware.JWTAuth(cfg.JWTSecret))
 		{
+			protected.GET("/dashboard/stats", dashboardHandler.GetStats)
 			protected.GET("/devices", deviceHandler.ListDevices)
 			protected.GET("/devices/:id", deviceHandler.GetDevice)
 		}

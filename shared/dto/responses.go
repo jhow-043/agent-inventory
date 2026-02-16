@@ -27,6 +27,13 @@ type ReadyResponse struct {
 	Database string `json:"database"`
 }
 
+// DashboardStatsResponse is returned by GET /api/v1/dashboard/stats.
+type DashboardStatsResponse struct {
+	Total   int `json:"total"`
+	Online  int `json:"online"`
+	Offline int `json:"offline"`
+}
+
 // EnrollResponse is returned after a successful device enrollment.
 type EnrollResponse struct {
 	DeviceID uuid.UUID `json:"device_id"`
