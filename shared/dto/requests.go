@@ -1,7 +1,11 @@
 // Package dto defines the data transfer objects for API requests.
 package dto
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // EnrollRequest is sent by the agent to register with the API.
 type EnrollRequest struct {
@@ -87,4 +91,24 @@ type LoginRequest struct {
 type CreateUserRequest struct {
 	Username string `json:"username" binding:"required,min=3,max=100"`
 	Password string `json:"password" binding:"required,min=8,max=100"`
+}
+
+// UpdateDeviceStatusRequest is used to change a device's lifecycle status.
+type UpdateDeviceStatusRequest struct {
+	Status string `json:"status" binding:"required,oneof=active inactive"`
+}
+
+// UpdateDeviceDepartmentRequest is used to assign a device to a department.
+type UpdateDeviceDepartmentRequest struct {
+	DepartmentID *uuid.UUID `json:"department_id"`
+}
+
+// CreateDepartmentRequest is used to create a new department.
+type CreateDepartmentRequest struct {
+	Name string `json:"name" binding:"required,min=1,max=100"`
+}
+
+// UpdateDepartmentRequest is used to rename a department.
+type UpdateDepartmentRequest struct {
+	Name string `json:"name" binding:"required,min=1,max=100"`
 }

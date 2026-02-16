@@ -35,9 +35,10 @@ type ReadyResponse struct {
 
 // DashboardStatsResponse is returned by GET /api/v1/dashboard/stats.
 type DashboardStatsResponse struct {
-	Total   int `json:"total"`
-	Online  int `json:"online"`
-	Offline int `json:"offline"`
+	Total    int `json:"total"`
+	Online   int `json:"online"`
+	Offline  int `json:"offline"`
+	Inactive int `json:"inactive"`
 }
 
 // UserResponse is a single user returned by the API (no password hash).
@@ -75,4 +76,18 @@ type DeviceDetailResponse struct {
 	NetworkInterfaces []models.NetworkInterface  `json:"network_interfaces"`
 	InstalledSoftware []models.InstalledSoftware `json:"installed_software"`
 	RemoteTools       []models.RemoteTool        `json:"remote_tools"`
+	HardwareHistory   []models.HardwareHistory   `json:"hardware_history"`
+}
+
+// DepartmentResponse is returned for department CRUD operations.
+type DepartmentResponse struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt string    `json:"created_at"`
+}
+
+// DepartmentListResponse is returned by GET /api/v1/departments.
+type DepartmentListResponse struct {
+	Departments []models.Department `json:"departments"`
+	Total       int                 `json:"total"`
 }

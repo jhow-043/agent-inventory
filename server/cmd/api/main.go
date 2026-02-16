@@ -51,12 +51,14 @@ func runServer() {
 	deviceRepo := repository.NewDeviceRepository(db)
 	inventoryRepo := repository.NewInventoryRepository(db)
 	dashboardRepo := repository.NewDashboardRepository(db)
+	departmentRepo := repository.NewDepartmentRepository(db)
 
 	// ── Services ─────────────────────────────────────────────────────
 	authSvc := service.NewAuthService(db, userRepo, tokenRepo, cfg.JWTSecret)
 	inventorySvc := service.NewInventoryService(inventoryRepo)
 	deviceSvc := service.NewDeviceService(deviceRepo)
 	dashboardSvc := service.NewDashboardService(dashboardRepo)
+	departmentSvc := service.NewDepartmentService(departmentRepo)
 
 	// ── Handlers ─────────────────────────────────────────────────────
 	healthHandler := handler.NewHealthHandler(db)
@@ -64,10 +66,11 @@ func runServer() {
 	inventoryHandler := handler.NewInventoryHandler(inventorySvc)
 	deviceHandler := handler.NewDeviceHandler(deviceSvc)
 	dashboardHandler := handler.NewDashboardHandler(dashboardSvc)
+	departmentHandler := handler.NewDepartmentHandler(departmentSvc)
 	userHandler := handler.NewUserHandler(authSvc)
 
 	// ── Router ───────────────────────────────────────────────────
-	r := router.Setup(cfg, healthHandler, inventoryHandler, authHandler, deviceHandler, dashboardHandler, userHandler, tokenRepo)
+	r := router.Setup(cfg, healthHandler, inventoryHandler, authHandler, deviceHandler, dashboardHandler, userHandler, departmentHandler, tokenRepo)
 
 	// ── HTTP Server ──────────────────────────────────────────────────
 	srv := &http.Server{

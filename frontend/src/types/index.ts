@@ -12,6 +12,9 @@ export interface Device {
   logged_in_user: string;
   agent_version: string;
   license_status: string;
+  status: string;
+  department_id: string | null;
+  department_name: string | null;
   last_seen: string;
   created_at: string;
   updated_at: string;
@@ -72,6 +75,19 @@ export interface RemoteTool {
   version: string;
 }
 
+export interface HardwareHistory {
+  id: string;
+  device_id: string;
+  snapshot: string;
+  changed_at: string;
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
 export interface DeviceListResponse {
   devices: Device[];
   total: number;
@@ -83,6 +99,7 @@ export interface DashboardStats {
   total: number;
   online: number;
   offline: number;
+  inactive: number;
 }
 
 export interface DeviceDetailResponse {
@@ -92,6 +109,12 @@ export interface DeviceDetailResponse {
   network_interfaces: NetworkInterface[];
   installed_software: InstalledSoftware[];
   remote_tools: RemoteTool[];
+  hardware_history: HardwareHistory[];
+}
+
+export interface DepartmentListResponse {
+  departments: Department[];
+  total: number;
 }
 
 export interface ErrorResponse {

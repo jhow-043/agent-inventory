@@ -20,7 +20,7 @@ func NewDashboardService(repo *repository.DashboardRepository) *DashboardService
 
 // GetStats returns aggregated dashboard statistics.
 func (s *DashboardService) GetStats(ctx context.Context) (*dto.DashboardStatsResponse, error) {
-	total, online, err := s.dashboardRepo.GetStats(ctx)
+	total, online, inactive, err := s.dashboardRepo.GetStats(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get stats: %w", err)
 	}
@@ -28,8 +28,9 @@ func (s *DashboardService) GetStats(ctx context.Context) (*dto.DashboardStatsRes
 	offline := total - online
 
 	return &dto.DashboardStatsResponse{
-		Total:   total,
-		Online:  online,
-		Offline: offline,
+		Total:    total,
+		Online:   online,
+		Offline:  offline,
+		Inactive: inactive,
 	}, nil
 }

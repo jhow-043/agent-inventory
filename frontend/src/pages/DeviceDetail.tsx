@@ -1,10 +1,11 @@
-// Device detail page with dark theme and remote access section.
+// Device detail page with dark theme, status control, department assignment, hardware history, and remote access section.
 
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { getDevice } from '../api/devices';
-import type { RemoteTool } from '../types';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getDevice, updateDeviceStatus, updateDeviceDepartment } from '../api/devices';
+import { getDepartments } from '../api/departments';
+import type { RemoteTool, Hardware } from '../types';
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -16,17 +17,42 @@ function formatBytes(bytes: number): string {
 
 export default function DeviceDetail() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery({
     queryKey: ['device', id],
     queryFn: () => getDevice(id!),
     enabled: !!id,
   });
 
+  const { data: deptData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: getDepartments,
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: (newStatus: 'active' | 'inactive') => updateDeviceStatus(id!, newStatus),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['device', id] });
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    },
+  });
+
+  const departmentMutation = useMutation({
+    mutationFn: (deptId: string | null) => updateDeviceDepartment(id!, deptId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['device', id] });
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+    },
+  });
+
   if (isLoading) return <p className="text-text-muted">Loading...</p>;
   if (error) return <p className="text-danger">Failed to load device details.</p>;
   if (!data) return null;
 
-  const { device, hardware, disks, network_interfaces, installed_software, remote_tools } = data;
+  const { device, hardware, disks, network_interfaces, installed_software, remote_tools, hardware_history } = data;
+  const departments = deptData?.departments ?? [];
+  const isInactive = device.status === 'inactive';
 
   return (
     <div>
@@ -34,7 +60,36 @@ export default function DeviceDetail() {
         &larr; Back to devices
       </Link>
 
-      <h1 className="text-xl font-semibold text-text-primary mb-6">{device.hostname}</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-semibold text-text-primary">{device.hostname}</h1>
+        <div className="flex items-center gap-3">
+          {/* Department selector */}
+          <select
+            value={device.department_id ?? ''}
+            onChange={(e) => departmentMutation.mutate(e.target.value || null)}
+            disabled={departmentMutation.isPending}
+            className="bg-bg-secondary border border-border-primary rounded px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
+          >
+            <option value="">No Department</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+
+          {/* Status toggle */}
+          <button
+            onClick={() => statusMutation.mutate(isInactive ? 'active' : 'inactive')}
+            disabled={statusMutation.isPending}
+            className={`px-3 py-1.5 text-sm rounded border transition-colors cursor-pointer ${
+              isInactive
+                ? 'bg-success/10 text-success border-success/30 hover:bg-success/20'
+                : 'bg-warning/10 text-warning border-warning/30 hover:bg-warning/20'
+            }`}
+          >
+            {statusMutation.isPending ? '...' : isInactive ? 'Reactivate' : 'Deactivate'}
+          </button>
+        </div>
+      </div>
 
       {/* Remote Access Tools */}
       <Section title="Remote Access">
@@ -222,6 +277,36 @@ export default function DeviceDetail() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </Section>
+      )}
+
+      {/* Hardware History */}
+      {hardware_history && hardware_history.length > 0 && (
+        <Section title="Hardware Changes">
+          <div className="space-y-3">
+            {hardware_history.map((h) => {
+              let snapshot: Partial<Hardware> = {};
+              try { snapshot = JSON.parse(h.snapshot); } catch { /* ignore */ }
+              return (
+                <div key={h.id} className="bg-bg-tertiary rounded-lg border border-border-primary p-4">
+                  <p className="text-xs text-text-muted mb-2">
+                    Changed at: {new Date(h.changed_at).toLocaleString()}
+                  </p>
+                  <Grid>
+                    {snapshot.cpu_model && <Field label="CPU" value={snapshot.cpu_model} />}
+                    {snapshot.cpu_cores != null && snapshot.cpu_threads != null && (
+                      <Field label="Cores / Threads" value={`${snapshot.cpu_cores} / ${snapshot.cpu_threads}`} />
+                    )}
+                    {snapshot.ram_total_bytes != null && <Field label="RAM" value={formatBytes(snapshot.ram_total_bytes)} />}
+                    {(snapshot.motherboard_manufacturer || snapshot.motherboard_product) && (
+                      <Field label="Motherboard" value={`${snapshot.motherboard_manufacturer ?? ''} ${snapshot.motherboard_product ?? ''}`.trim()} />
+                    )}
+                    {snapshot.bios_vendor && <Field label="BIOS" value={`${snapshot.bios_vendor} ${snapshot.bios_version ?? ''}`.trim()} />}
+                  </Grid>
+                </div>
+              );
+            })}
           </div>
         </Section>
       )}

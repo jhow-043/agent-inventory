@@ -23,13 +23,14 @@ func NewDeviceRepository(db *sqlx.DB) *DeviceRepository {
 
 // ListParams holds filters, pagination, and sorting options for listing devices.
 type ListParams struct {
-	Hostname string
-	OS       string
-	Status   string // "online", "offline", or "" (all)
-	Sort     string // column name
-	Order    string // "asc" or "desc"
-	Page     int
-	Limit    int
+	Hostname     string
+	OS           string
+	Status       string // "online", "offline", "inactive", or "" (all active)
+	DepartmentID string // UUID filter
+	Sort         string // column name
+	Order        string // "asc" or "desc"
+	Page         int
+	Limit        int
 }
 
 // allowedSortColumns maps user-facing column names to SQL columns.
@@ -47,26 +48,40 @@ type ListResult struct {
 }
 
 // List returns devices with filtering, sorting, and pagination.
+// By default only active devices are returned; pass Status="inactive" to see inactive ones.
 func (r *DeviceRepository) List(ctx context.Context, p ListParams) (*ListResult, error) {
 	var where []string
 	args := []interface{}{}
 	argIdx := 1
 
 	if p.Hostname != "" {
-		where = append(where, fmt.Sprintf("hostname ILIKE $%d", argIdx))
+		where = append(where, fmt.Sprintf("d.hostname ILIKE $%d", argIdx))
 		args = append(args, "%"+p.Hostname+"%")
 		argIdx++
 	}
 	if p.OS != "" {
-		where = append(where, fmt.Sprintf("(os_name ILIKE $%d OR os_version ILIKE $%d)", argIdx, argIdx))
+		where = append(where, fmt.Sprintf("(d.os_name ILIKE $%d OR d.os_version ILIKE $%d)", argIdx, argIdx))
 		args = append(args, "%"+p.OS+"%")
 		argIdx++
 	}
+	if p.DepartmentID != "" {
+		where = append(where, fmt.Sprintf("d.department_id = $%d", argIdx))
+		args = append(args, p.DepartmentID)
+		argIdx++
+	}
+
 	switch p.Status {
 	case "online":
-		where = append(where, "last_seen > NOW() - INTERVAL '1 hour'")
+		where = append(where, "d.status = 'active'")
+		where = append(where, "d.last_seen > NOW() - INTERVAL '1 hour'")
 	case "offline":
-		where = append(where, "last_seen <= NOW() - INTERVAL '1 hour'")
+		where = append(where, "d.status = 'active'")
+		where = append(where, "d.last_seen <= NOW() - INTERVAL '1 hour'")
+	case "inactive":
+		where = append(where, "d.status = 'inactive'")
+	default:
+		// Empty status = all active devices
+		where = append(where, "d.status = 'active'")
 	}
 
 	whereClause := ""
@@ -75,16 +90,16 @@ func (r *DeviceRepository) List(ctx context.Context, p ListParams) (*ListResult,
 	}
 
 	// Count total matching rows.
-	countQuery := "SELECT COUNT(*) FROM devices" + whereClause
+	countQuery := "SELECT COUNT(*) FROM devices d" + whereClause
 	var total int
 	if err := r.db.GetContext(ctx, &total, countQuery, args...); err != nil {
 		return nil, fmt.Errorf("count devices: %w", err)
 	}
 
 	// Sorting — validate column.
-	orderCol := "hostname"
+	orderCol := "d.hostname"
 	if col, ok := allowedSortColumns[p.Sort]; ok {
-		orderCol = col
+		orderCol = "d." + col
 	}
 	orderDir := "ASC"
 	if strings.EqualFold(p.Order, "desc") {
@@ -102,7 +117,10 @@ func (r *DeviceRepository) List(ctx context.Context, p ListParams) (*ListResult,
 	}
 	offset := (page - 1) * limit
 
-	dataQuery := fmt.Sprintf("SELECT * FROM devices%s ORDER BY %s %s LIMIT $%d OFFSET $%d",
+	dataQuery := fmt.Sprintf(`SELECT d.*, dep.name AS department_name
+		FROM devices d
+		LEFT JOIN departments dep ON dep.id = d.department_id
+		%s ORDER BY %s %s LIMIT $%d OFFSET $%d`,
 		whereClause, orderCol, orderDir, argIdx, argIdx+1)
 	args = append(args, limit, offset)
 
@@ -117,14 +135,122 @@ func (r *DeviceRepository) List(ctx context.Context, p ListParams) (*ListResult,
 	return &ListResult{Devices: devices, Total: total}, nil
 }
 
-// GetByID retrieves a single device by its primary key.
+// GetByID retrieves a single device by its primary key, including department name.
 func (r *DeviceRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Device, error) {
 	var device models.Device
-	err := r.db.GetContext(ctx, &device, "SELECT * FROM devices WHERE id = $1", id)
+	err := r.db.GetContext(ctx, &device, `SELECT d.*, dep.name AS department_name
+		FROM devices d LEFT JOIN departments dep ON dep.id = d.department_id
+		WHERE d.id = $1`, id)
 	if err != nil {
 		return nil, err
 	}
 	return &device, nil
+}
+
+// UpdateStatus sets the status column of a device (active / inactive).
+func (r *DeviceRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
+	res, err := r.db.ExecContext(ctx,
+		"UPDATE devices SET status = $1 WHERE id = $2", status, id)
+	if err != nil {
+		return fmt.Errorf("update device status: %w", err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("device not found")
+	}
+	return nil
+}
+
+// UpdateDepartment assigns a department (or NULL) to a device.
+func (r *DeviceRepository) UpdateDepartment(ctx context.Context, id uuid.UUID, deptID *uuid.UUID) error {
+	res, err := r.db.ExecContext(ctx,
+		"UPDATE devices SET department_id = $1 WHERE id = $2", deptID, id)
+	if err != nil {
+		return fmt.Errorf("update device department: %w", err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("device not found")
+	}
+	return nil
+}
+
+// GetHardwareHistory returns hardware change snapshots for a device, newest first.
+func (r *DeviceRepository) GetHardwareHistory(ctx context.Context, deviceID uuid.UUID) ([]models.HardwareHistory, error) {
+	var history []models.HardwareHistory
+	err := r.db.SelectContext(ctx, &history,
+		"SELECT * FROM hardware_history WHERE device_id = $1 ORDER BY changed_at DESC", deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("get hardware history: %w", err)
+	}
+	if history == nil {
+		history = []models.HardwareHistory{}
+	}
+	return history, nil
+}
+
+// ListForExport returns ALL devices matching the filters (no pagination) for CSV export.
+func (r *DeviceRepository) ListForExport(ctx context.Context, p ListParams) ([]models.Device, error) {
+	var where []string
+	args := []interface{}{}
+	argIdx := 1
+
+	if p.Hostname != "" {
+		where = append(where, fmt.Sprintf("d.hostname ILIKE $%d", argIdx))
+		args = append(args, "%"+p.Hostname+"%")
+		argIdx++
+	}
+	if p.OS != "" {
+		where = append(where, fmt.Sprintf("(d.os_name ILIKE $%d OR d.os_version ILIKE $%d)", argIdx, argIdx))
+		args = append(args, "%"+p.OS+"%")
+		argIdx++
+	}
+	if p.DepartmentID != "" {
+		where = append(where, fmt.Sprintf("d.department_id = $%d", argIdx))
+		args = append(args, p.DepartmentID)
+		argIdx++
+	}
+
+	switch p.Status {
+	case "online":
+		where = append(where, "d.status = 'active'")
+		where = append(where, "d.last_seen > NOW() - INTERVAL '1 hour'")
+	case "offline":
+		where = append(where, "d.status = 'active'")
+		where = append(where, "d.last_seen <= NOW() - INTERVAL '1 hour'")
+	case "inactive":
+		where = append(where, "d.status = 'inactive'")
+	default:
+		where = append(where, "d.status = 'active'")
+	}
+
+	whereClause := ""
+	if len(where) > 0 {
+		whereClause = " WHERE " + strings.Join(where, " AND ")
+	}
+
+	orderCol := "d.hostname"
+	if col, ok := allowedSortColumns[p.Sort]; ok {
+		orderCol = "d." + col
+	}
+	orderDir := "ASC"
+	if strings.EqualFold(p.Order, "desc") {
+		orderDir = "DESC"
+	}
+
+	query := fmt.Sprintf(`SELECT d.*, dep.name AS department_name
+		FROM devices d
+		LEFT JOIN departments dep ON dep.id = d.department_id
+		%s ORDER BY %s %s`, whereClause, orderCol, orderDir)
+
+	var devices []models.Device
+	if err := r.db.SelectContext(ctx, &devices, query, args...); err != nil {
+		return nil, fmt.Errorf("list devices for export: %w", err)
+	}
+	if devices == nil {
+		devices = []models.Device{}
+	}
+	return devices, nil
 }
 
 // GetBySerialNumber retrieves a device by its serial number.

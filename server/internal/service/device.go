@@ -65,6 +65,10 @@ func (s *DeviceService) GetDeviceDetail(ctx context.Context, id uuid.UUID) (*dto
 	if err != nil {
 		remoteTools = []models.RemoteTool{}
 	}
+	hwHistory, err := s.deviceRepo.GetHardwareHistory(ctx, id)
+	if err != nil {
+		hwHistory = []models.HardwareHistory{}
+	}
 
 	return &dto.DeviceDetailResponse{
 		Device:            *device,
@@ -73,5 +77,21 @@ func (s *DeviceService) GetDeviceDetail(ctx context.Context, id uuid.UUID) (*dto
 		NetworkInterfaces: network,
 		InstalledSoftware: software,
 		RemoteTools:       remoteTools,
+		HardwareHistory:   hwHistory,
 	}, nil
+}
+
+// UpdateStatus changes the status of a device (active / inactive).
+func (s *DeviceService) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
+	return s.deviceRepo.UpdateStatus(ctx, id, status)
+}
+
+// UpdateDepartment changes the department assignment for a device.
+func (s *DeviceService) UpdateDepartment(ctx context.Context, id uuid.UUID, deptID *uuid.UUID) error {
+	return s.deviceRepo.UpdateDepartment(ctx, id, deptID)
+}
+
+// ListForExport returns all devices matching the filters (no pagination) for CSV export.
+func (s *DeviceService) ListForExport(ctx context.Context, p repository.ListParams) ([]models.Device, error) {
+	return s.deviceRepo.ListForExport(ctx, p)
 }

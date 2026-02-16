@@ -1,9 +1,10 @@
-// Device list page with pagination, sorting, debounced filters, and status filter.
+// Device list page with pagination, sorting, debounced filters, status/department filter, and CSV export.
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { getDevices } from '../api/devices';
+import { getDevices, exportDevicesCSV } from '../api/devices';
+import { getDepartments } from '../api/departments';
 import { useDebounce } from '../hooks/useDebounce';
 
 type SortCol = 'hostname' | 'os' | 'last_seen' | 'status';
@@ -13,6 +14,7 @@ export default function DeviceList() {
   const [hostname, setHostname] = useState('');
   const [os, setOs] = useState('');
   const [status, setStatus] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
   const [sort, setSort] = useState<SortCol>('hostname');
   const [order, setOrder] = useState<SortOrder>('asc');
   const [page, setPage] = useState(1);
@@ -21,13 +23,19 @@ export default function DeviceList() {
   const debouncedHostname = useDebounce(hostname, 300);
   const debouncedOs = useDebounce(os, 300);
 
+  const { data: deptData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: getDepartments,
+  });
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['devices', debouncedHostname, debouncedOs, status, sort, order, page],
+    queryKey: ['devices', debouncedHostname, debouncedOs, status, departmentId, sort, order, page],
     queryFn: () =>
       getDevices({
         hostname: debouncedHostname || undefined,
         os: debouncedOs || undefined,
         status: status || undefined,
+        department_id: departmentId || undefined,
         sort,
         order,
         page,
@@ -38,6 +46,7 @@ export default function DeviceList() {
   const devices = data?.devices ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / limit));
+  const departments = deptData?.departments ?? [];
 
   const toggleSort = (col: SortCol) => {
     if (sort === col) {
@@ -58,12 +67,35 @@ export default function DeviceList() {
   const handleHostname = (v: string) => { setHostname(v); setPage(1); };
   const handleOs = (v: string) => { setOs(v); setPage(1); };
   const handleStatus = (v: string) => { setStatus(v); setPage(1); };
+  const handleDepartment = (v: string) => { setDepartmentId(v); setPage(1); };
+
+  const handleExportCSV = () => {
+    exportDevicesCSV({
+      hostname: debouncedHostname || undefined,
+      os: debouncedOs || undefined,
+      status: status || undefined,
+      department_id: departmentId || undefined,
+      sort,
+      order,
+    });
+  };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-semibold text-text-primary">Devices</h1>
-        <span className="text-sm text-text-muted">{total} total</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportCSV}
+            className="px-3 py-1.5 text-sm bg-bg-secondary border border-border-primary rounded hover:bg-bg-tertiary text-text-primary transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Export CSV
+          </button>
+          <span className="text-sm text-text-muted">{total} total</span>
+        </div>
       </div>
 
       {/* Filters */}
@@ -87,9 +119,20 @@ export default function DeviceList() {
           onChange={(e) => handleStatus(e.target.value)}
           className="bg-bg-secondary border border-border-primary rounded px-3 py-2 text-sm text-text-primary w-full sm:w-40 focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
         >
-          <option value="">All Status</option>
+          <option value="">All Active</option>
           <option value="online">Online</option>
           <option value="offline">Offline</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        <select
+          value={departmentId}
+          onChange={(e) => handleDepartment(e.target.value)}
+          className="bg-bg-secondary border border-border-primary rounded px-3 py-2 text-sm text-text-primary w-full sm:w-48 focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
+        >
+          <option value="">All Departments</option>
+          {departments.map((d) => (
+            <option key={d.id} value={d.id}>{d.name}</option>
+          ))}
         </select>
       </div>
 
@@ -112,6 +155,9 @@ export default function DeviceList() {
                 </th>
               ))}
               <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
+                Department
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
                 Agent
               </th>
               <th
@@ -132,7 +178,7 @@ export default function DeviceList() {
             {isLoading
               ? Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 5 }).map((_, j) => (
+                    {Array.from({ length: 6 }).map((_, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-4 bg-bg-tertiary rounded animate-pulse" style={{ width: `${50 + Math.random() * 40}%` }} />
                       </td>
@@ -140,7 +186,16 @@ export default function DeviceList() {
                   </tr>
                 ))
               : devices.map((d) => {
-                  const online = Date.now() - new Date(d.last_seen).getTime() < 60 * 60 * 1000;
+                  const isInactive = d.status === 'inactive';
+                  const online = !isInactive && Date.now() - new Date(d.last_seen).getTime() < 60 * 60 * 1000;
+                  const statusLabel = isInactive ? 'Inactive' : online ? 'Online' : 'Offline';
+                  const statusClass = isInactive
+                    ? 'bg-warning/15 text-warning'
+                    : online
+                      ? 'bg-success/15 text-success'
+                      : 'bg-bg-tertiary text-text-muted';
+                  const dotClass = isInactive ? 'bg-warning' : online ? 'bg-success' : 'bg-text-muted';
+
                   return (
                     <tr key={d.id} className="hover:bg-bg-tertiary transition-colors">
                       <td className="px-4 py-3 text-sm">
@@ -151,18 +206,17 @@ export default function DeviceList() {
                       <td className="px-4 py-3 text-sm text-text-secondary">
                         {d.os_name} {d.os_version}
                       </td>
+                      <td className="px-4 py-3 text-sm text-text-muted">{d.department_name || '—'}</td>
                       <td className="px-4 py-3 text-sm text-text-muted">{d.agent_version || '—'}</td>
                       <td className="px-4 py-3 text-sm text-text-muted">
                         {new Date(d.last_seen).toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                            online ? 'bg-success/15 text-success' : 'bg-bg-tertiary text-text-muted'
-                          }`}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusClass}`}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-success' : 'bg-text-muted'}`} />
-                          {online ? 'Online' : 'Offline'}
+                          <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+                          {statusLabel}
                         </span>
                       </td>
                     </tr>
@@ -170,7 +224,7 @@ export default function DeviceList() {
                 })}
             {!isLoading && devices.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-text-muted">
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-text-muted">
                   No devices found.
                 </td>
               </tr>

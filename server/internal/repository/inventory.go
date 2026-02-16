@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"inventario/shared/dto"
+	"inventario/shared/models"
 )
 
 // InventoryRepository handles the transactional upsert of a full inventory snapshot.
@@ -54,7 +57,34 @@ func (r *InventoryRepository) Save(ctx context.Context, deviceID uuid.UUID, req 
 		return fmt.Errorf("upsert device: %w", err)
 	}
 
-	// Upsert hardware
+	// Upsert hardware — save a snapshot first if hardware changed.
+	var existingHW models.Hardware
+	hwErr := tx.GetContext(ctx, &existingHW, "SELECT * FROM hardware WHERE device_id = $1", deviceID)
+	if hwErr == nil {
+		// Hardware row exists — compare key fields.
+		incoming := req.Hardware
+		changed := existingHW.CPUModel != incoming.CPUModel ||
+			existingHW.CPUCores != incoming.CPUCores ||
+			existingHW.CPUThreads != incoming.CPUThreads ||
+			existingHW.RAMTotalBytes != incoming.RAMTotalBytes ||
+			existingHW.MotherboardManufacturer != incoming.MotherboardManufacturer ||
+			existingHW.MotherboardProduct != incoming.MotherboardProduct ||
+			existingHW.MotherboardSerial != incoming.MotherboardSerial ||
+			existingHW.BIOSVendor != incoming.BIOSVendor ||
+			existingHW.BIOSVersion != incoming.BIOSVersion
+
+		if changed {
+			snapshot, _ := json.Marshal(existingHW)
+			if _, err = tx.ExecContext(ctx,
+				"INSERT INTO hardware_history (id, device_id, snapshot, changed_at) VALUES (uuid_generate_v4(), $1, $2, NOW())",
+				deviceID, string(snapshot)); err != nil {
+				return fmt.Errorf("save hardware history: %w", err)
+			}
+		}
+	} else if hwErr != sql.ErrNoRows {
+		return fmt.Errorf("check existing hardware: %w", hwErr)
+	}
+
 	if _, err = tx.ExecContext(ctx, `
 		INSERT INTO hardware (id, device_id, cpu_model, cpu_cores, cpu_threads, ram_total_bytes,
 			motherboard_manufacturer, motherboard_product, motherboard_serial,

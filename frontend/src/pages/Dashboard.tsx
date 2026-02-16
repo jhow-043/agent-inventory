@@ -21,15 +21,17 @@ export default function Dashboard() {
   const total = data?.total ?? 0;
   const online = data?.online ?? 0;
   const offline = data?.offline ?? 0;
+  const inactive = data?.inactive ?? 0;
 
   return (
     <div>
       <h1 className="text-xl font-semibold text-text-primary mb-6">Dashboard</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard label="Total Devices" value={total} color="blue" />
         <StatCard label="Online" value={online} color="green" />
         <StatCard label="Offline" value={offline} color="gray" />
+        <StatCard label="Inactive" value={inactive} color="yellow" />
       </div>
 
       {total > 0 && (
@@ -46,6 +48,7 @@ function StatCard({ label, value, color }: { label: string; value: number; color
     blue: 'bg-accent/10 text-accent border-accent/20',
     green: 'bg-success/10 text-success border-success/20',
     gray: 'bg-bg-tertiary text-text-secondary border-border-primary',
+    yellow: 'bg-warning/10 text-warning border-warning/20',
   };
   return (
     <div className={`rounded-lg border p-5 ${colors[color] ?? colors.gray}`}>

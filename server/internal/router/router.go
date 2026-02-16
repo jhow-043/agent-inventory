@@ -22,6 +22,7 @@ func Setup(
 	deviceHandler *handler.DeviceHandler,
 	dashboardHandler *handler.DashboardHandler,
 	userHandler *handler.UserHandler,
+	departmentHandler *handler.DepartmentHandler,
 	tokenRepo *repository.TokenRepository,
 ) *gin.Engine {
 	if cfg.LogLevel != slog.LevelDebug {
@@ -57,7 +58,15 @@ func Setup(
 			protected.GET("/auth/me", authHandler.Me)
 			protected.GET("/dashboard/stats", dashboardHandler.GetStats)
 			protected.GET("/devices", deviceHandler.ListDevices)
+			protected.GET("/devices/export", deviceHandler.ExportCSV)
 			protected.GET("/devices/:id", deviceHandler.GetDevice)
+			protected.PATCH("/devices/:id/status", deviceHandler.UpdateStatus)
+			protected.PATCH("/devices/:id/department", deviceHandler.UpdateDepartment)
+			protected.GET("/devices/:id/hardware-history", deviceHandler.GetHardwareHistory)
+			protected.GET("/departments", departmentHandler.ListDepartments)
+			protected.POST("/departments", departmentHandler.CreateDepartment)
+			protected.PUT("/departments/:id", departmentHandler.UpdateDepartment)
+			protected.DELETE("/departments/:id", departmentHandler.DeleteDepartment)
 			protected.GET("/users", userHandler.ListUsers)
 			protected.POST("/users", userHandler.CreateUser)
 			protected.DELETE("/users/:id", userHandler.DeleteUser)
