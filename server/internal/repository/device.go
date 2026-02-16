@@ -62,9 +62,10 @@ func (r *DeviceRepository) List(ctx context.Context, p ListParams) (*ListResult,
 		args = append(args, "%"+p.OS+"%")
 		argIdx++
 	}
-	if p.Status == "online" {
+	switch p.Status {
+	case "online":
 		where = append(where, "last_seen > NOW() - INTERVAL '1 hour'")
-	} else if p.Status == "offline" {
+	case "offline":
 		where = append(where, "last_seen <= NOW() - INTERVAL '1 hour'")
 	}
 

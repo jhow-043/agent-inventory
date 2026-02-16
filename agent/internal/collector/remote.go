@@ -342,6 +342,8 @@ func (c *Collector) getUninstallVersion(softwareName string) string {
 					version, _, _ := sk.GetStringValue("DisplayVersion")
 					sk.Close()
 					if version != "" {
+						// Some tools (e.g. AnyDesk) prefix the version with "ad ".
+						version = strings.TrimPrefix(version, "ad ")
 						return version
 					}
 				}
