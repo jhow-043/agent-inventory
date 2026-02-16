@@ -35,6 +35,8 @@ web/.env.local
 # Agent data
 agent/data/
 agent/config.json
+agent/build/
+agent/installer/output/
 
 # Documentation (ITIL) - separate deliverable
 docs/
