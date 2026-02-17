@@ -33,8 +33,8 @@ func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*m
 // Create inserts a new user into the database.
 func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	_, err := r.db.ExecContext(ctx,
-		"INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)",
-		user.ID, user.Username, user.PasswordHash)
+		"INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+		user.ID, user.Username, user.PasswordHash, user.Role)
 	return err
 }
 

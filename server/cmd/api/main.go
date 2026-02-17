@@ -14,6 +14,7 @@ import (
 	"inventario/server/internal/config"
 	"inventario/server/internal/database"
 	"inventario/server/internal/handler"
+	"inventario/server/internal/middleware"
 	"inventario/server/internal/repository"
 	"inventario/server/internal/router"
 	"inventario/server/internal/service"
@@ -52,6 +53,10 @@ func runServer() {
 	inventoryRepo := repository.NewInventoryRepository(db)
 	dashboardRepo := repository.NewDashboardRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
+	auditRepo := repository.NewAuditLogRepository(db)
+
+	// ── Audit Logger ─────────────────────────────────────────────────
+	auditLogger := middleware.NewAuditLogger(auditRepo)
 
 	// ── Services ─────────────────────────────────────────────────────
 	authSvc := service.NewAuthService(db, userRepo, tokenRepo, cfg.JWTSecret)
@@ -62,15 +67,16 @@ func runServer() {
 
 	// ── Handlers ─────────────────────────────────────────────────────
 	healthHandler := handler.NewHealthHandler(db)
-	authHandler := handler.NewAuthHandler(authSvc, cfg.EnrollmentKey)
+	authHandler := handler.NewAuthHandler(authSvc, cfg.EnrollmentKey, auditLogger)
 	inventoryHandler := handler.NewInventoryHandler(inventorySvc)
-	deviceHandler := handler.NewDeviceHandler(deviceSvc)
+	deviceHandler := handler.NewDeviceHandler(deviceSvc, auditLogger)
 	dashboardHandler := handler.NewDashboardHandler(dashboardSvc)
-	departmentHandler := handler.NewDepartmentHandler(departmentSvc)
-	userHandler := handler.NewUserHandler(authSvc)
+	departmentHandler := handler.NewDepartmentHandler(departmentSvc, auditLogger)
+	userHandler := handler.NewUserHandler(authSvc, auditLogger)
+	auditHandler := handler.NewAuditLogHandler(auditRepo)
 
 	// ── Router ───────────────────────────────────────────────────
-	r := router.Setup(cfg, healthHandler, inventoryHandler, authHandler, deviceHandler, dashboardHandler, userHandler, departmentHandler, tokenRepo)
+	r := router.Setup(cfg, healthHandler, inventoryHandler, authHandler, deviceHandler, dashboardHandler, userHandler, departmentHandler, auditHandler, tokenRepo)
 
 	// ── HTTP Server ──────────────────────────────────────────────────
 	srv := &http.Server{
@@ -107,7 +113,7 @@ func runServer() {
 }
 
 func runCreateUser() {
-	var username, password string
+	var username, password, role string
 	for i := 2; i < len(os.Args); i++ {
 		switch os.Args[i] {
 		case "--username":
@@ -120,16 +126,31 @@ func runCreateUser() {
 				password = os.Args[i+1]
 				i++
 			}
+		case "--role":
+			if i+1 < len(os.Args) {
+				role = os.Args[i+1]
+				i++
+			}
 		}
 	}
 
 	if username == "" || password == "" {
-		fmt.Println("Usage: server create-user --username <user> --password <pass>")
+		fmt.Println("Usage: server create-user --username <user> --password <pass> [--role admin|viewer]")
 		os.Exit(1)
 	}
 
 	if len(password) < 8 {
 		fmt.Println("Error: password must be at least 8 characters")
+		os.Exit(1)
+	}
+
+	// Default to admin for CLI-created users
+	if role == "" {
+		role = "admin"
+	}
+
+	if role != "admin" && role != "viewer" {
+		fmt.Println("Error: role must be 'admin' or 'viewer'")
 		os.Exit(1)
 	}
 
@@ -145,10 +166,10 @@ func runCreateUser() {
 	tokenRepo := repository.NewTokenRepository(db)
 	authSvc := service.NewAuthService(db, userRepo, tokenRepo, cfg.JWTSecret)
 
-	if err := authSvc.CreateUser(context.Background(), username, password); err != nil {
+	if err := authSvc.CreateUser(context.Background(), username, password, role); err != nil {
 		slog.Error("failed to create user", "error", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("User '%s' created successfully\n", username)
+	fmt.Printf("User '%s' created successfully with role '%s'\n", username, role)
 }

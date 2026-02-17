@@ -7,18 +7,20 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"inventario/server/internal/middleware"
 	"inventario/server/internal/service"
 	"inventario/shared/dto"
 )
 
 // DepartmentHandler handles department CRUD endpoints.
 type DepartmentHandler struct {
-	service *service.DepartmentService
+	service     *service.DepartmentService
+	auditLogger *middleware.AuditLogger
 }
 
 // NewDepartmentHandler creates a new DepartmentHandler.
-func NewDepartmentHandler(svc *service.DepartmentService) *DepartmentHandler {
-	return &DepartmentHandler{service: svc}
+func NewDepartmentHandler(svc *service.DepartmentService, auditLogger *middleware.AuditLogger) *DepartmentHandler {
+	return &DepartmentHandler{service: svc, auditLogger: auditLogger}
 }
 
 // ListDepartments returns all departments.
@@ -47,6 +49,7 @@ func (h *DepartmentHandler) CreateDepartment(c *gin.Context) {
 		return
 	}
 
+	h.auditLogger.Log(c, "department.create", "department", &dept.ID, map[string]interface{}{"name": dept.Name})
 	c.JSON(http.StatusCreated, dept)
 }
 
@@ -71,6 +74,7 @@ func (h *DepartmentHandler) UpdateDepartment(c *gin.Context) {
 		return
 	}
 
+	h.auditLogger.Log(c, "department.update", "department", &id, map[string]interface{}{"new_name": req.Name})
 	c.JSON(http.StatusOK, dept)
 }
 
@@ -88,5 +92,6 @@ func (h *DepartmentHandler) DeleteDepartment(c *gin.Context) {
 		return
 	}
 
+	h.auditLogger.Log(c, "department.delete", "department", &id, nil)
 	c.JSON(http.StatusOK, dto.MessageResponse{Message: "department deleted"})
 }

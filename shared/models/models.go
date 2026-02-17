@@ -121,6 +121,21 @@ type User struct {
 	ID           uuid.UUID `json:"id" db:"id"`
 	Username     string    `json:"username" db:"username"`
 	PasswordHash string    `json:"-" db:"password_hash"`
+	Role         string    `json:"role" db:"role"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// AuditLog represents a record of an important system action.
+type AuditLog struct {
+	ID           uuid.UUID  `json:"id" db:"id"`
+	UserID       *uuid.UUID `json:"user_id" db:"user_id"`
+	Username     string     `json:"username" db:"username"`
+	Action       string     `json:"action" db:"action"`
+	ResourceType string     `json:"resource_type" db:"resource_type"`
+	ResourceID   *uuid.UUID `json:"resource_id,omitempty" db:"resource_id"`
+	Details      string     `json:"details,omitempty" db:"details"` // JSONB stored as string
+	IPAddress    string     `json:"ip_address,omitempty" db:"ip_address"`
+	UserAgent    string     `json:"user_agent,omitempty" db:"user_agent"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
 }

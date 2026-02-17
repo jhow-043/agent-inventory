@@ -111,6 +111,7 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (string,
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":      user.ID.String(),
 		"username": user.Username,
+		"role":     user.Role,
 		"iat":      now.Unix(),
 		"exp":      now.Add(24 * time.Hour).Unix(),
 	})
@@ -119,16 +120,27 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (string,
 }
 
 // CreateUser creates a new dashboard user with a bcrypt-hashed password.
-func (s *AuthService) CreateUser(ctx context.Context, username, password string) error {
+func (s *AuthService) CreateUser(ctx context.Context, username, password, role string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
+	}
+
+	// Default to viewer if role is empty
+	if role == "" {
+		role = "viewer"
+	}
+
+	// Validate role
+	if role != "admin" && role != "viewer" {
+		return fmt.Errorf("invalid role: must be admin or viewer")
 	}
 
 	user := &models.User{
 		ID:           uuid.New(),
 		Username:     username,
 		PasswordHash: string(hash),
+		Role:         role,
 	}
 
 	return s.userRepo.Create(ctx, user)
