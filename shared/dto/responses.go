@@ -20,6 +20,7 @@ type MessageResponse struct {
 type MeResponse struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
+	Role     string `json:"role"`
 }
 
 // HealthResponse is returned by the liveness probe.
@@ -45,6 +46,7 @@ type DashboardStatsResponse struct {
 type UserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Username  string    `json:"username"`
+	Role      string    `json:"role"`
 	CreatedAt string    `json:"created_at"`
 }
 
@@ -90,4 +92,24 @@ type DepartmentResponse struct {
 type DepartmentListResponse struct {
 	Departments []models.Department `json:"departments"`
 	Total       int                 `json:"total"`
+}
+
+// AuditLogResponse is a single audit log entry.
+type AuditLogResponse struct {
+	ID           uuid.UUID  `json:"id"`
+	UserID       *uuid.UUID `json:"user_id"`
+	Username     string     `json:"username"`
+	Action       string     `json:"action"`
+	ResourceType string     `json:"resource_type"`
+	ResourceID   *uuid.UUID `json:"resource_id,omitempty"`
+	Details      string     `json:"details,omitempty"`
+	IPAddress    string     `json:"ip_address,omitempty"`
+	UserAgent    string     `json:"user_agent,omitempty"`
+	CreatedAt    string     `json:"created_at"`
+}
+
+// AuditLogListResponse is returned by GET /api/v1/audit-logs.
+type AuditLogListResponse struct {
+	Logs  []AuditLogResponse `json:"logs"`
+	Total int                `json:"total"`
 }

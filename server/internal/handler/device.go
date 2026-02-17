@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"inventario/server/internal/middleware"
 	"inventario/server/internal/repository"
 	"inventario/server/internal/service"
 	"inventario/shared/dto"
@@ -18,12 +19,13 @@ import (
 
 // DeviceHandler handles device listing and detail endpoints.
 type DeviceHandler struct {
-	service *service.DeviceService
+	service     *service.DeviceService
+	auditLogger *middleware.AuditLogger
 }
 
 // NewDeviceHandler creates a new DeviceHandler.
-func NewDeviceHandler(svc *service.DeviceService) *DeviceHandler {
-	return &DeviceHandler{service: svc}
+func NewDeviceHandler(svc *service.DeviceService, auditLogger *middleware.AuditLogger) *DeviceHandler {
+	return &DeviceHandler{service: svc, auditLogger: auditLogger}
 }
 
 // ListDevices returns devices with pagination, sorting, and filtering.
@@ -91,6 +93,7 @@ func (h *DeviceHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	h.auditLogger.Log(c, "device.status.update", "device", &id, map[string]interface{}{"new_status": req.Status})
 	c.JSON(http.StatusOK, dto.MessageResponse{Message: "status updated"})
 }
 
@@ -114,6 +117,7 @@ func (h *DeviceHandler) UpdateDepartment(c *gin.Context) {
 		return
 	}
 
+	h.auditLogger.Log(c, "device.department.update", "device", &id, map[string]interface{}{"department_id": req.DepartmentID})
 	c.JSON(http.StatusOK, dto.MessageResponse{Message: "department updated"})
 }
 

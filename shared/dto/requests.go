@@ -91,6 +91,7 @@ type LoginRequest struct {
 type CreateUserRequest struct {
 	Username string `json:"username" binding:"required,min=3,max=100"`
 	Password string `json:"password" binding:"required,min=8,max=100"`
+	Role     string `json:"role" binding:"omitempty,oneof=admin viewer"`
 }
 
 // UpdateDeviceStatusRequest is used to change a device's lifecycle status.

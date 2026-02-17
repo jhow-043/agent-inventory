@@ -77,6 +77,14 @@ func JWTAuth(jwtSecret string) gin.HandlerFunc {
 
 		c.Set("user_id", claims["sub"])
 		c.Set("username", claims["username"])
+
+		// Extract role from claims (with fallback to viewer for older tokens)
+		role, _ := claims["role"].(string)
+		if role == "" {
+			role = "viewer"
+		}
+		c.Set("user_role", role)
+
 		c.Next()
 	}
 }
