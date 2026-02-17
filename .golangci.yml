@@ -18,6 +18,12 @@ linters:
     - gosec
     - gocritic
 
+linters-settings:
+  misspell:
+    locale: US
+    ignore-words:
+      - inventario
+
 issues:
   exclude-rules:
     # Exclude some linters from running on tests files

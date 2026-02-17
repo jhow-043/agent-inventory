@@ -168,8 +168,10 @@ func runCreateUser() {
 
 	if err := authSvc.CreateUser(context.Background(), username, password, role); err != nil {
 		slog.Error("failed to create user", "error", err)
+		db.Close()
 		os.Exit(1)
 	}
 
+	db.Close()
 	fmt.Printf("User '%s' created successfully with role '%s'\n", username, role)
 }

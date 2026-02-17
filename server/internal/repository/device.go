@@ -208,7 +208,7 @@ func (r *DeviceRepository) ListForExport(ctx context.Context, p ListParams) ([]m
 	if p.DepartmentID != "" {
 		where = append(where, fmt.Sprintf("d.department_id = $%d", argIdx))
 		args = append(args, p.DepartmentID)
-		argIdx++
+		// argIdx not incremented as it's the last parameter
 	}
 
 	switch p.Status {

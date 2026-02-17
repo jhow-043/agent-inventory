@@ -45,7 +45,8 @@ func (s *AuthService) Enroll(ctx context.Context, req *dto.EnrollRequest) (*dto.
 	var device models.Device
 	err = tx.GetContext(ctx, &device, "SELECT * FROM devices WHERE serial_number = $1", req.SerialNumber)
 
-	if errors.Is(err, sql.ErrNoRows) {
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
 		// New device — insert.
 		device.ID = uuid.New()
 		device.Hostname = req.Hostname
@@ -57,9 +58,9 @@ func (s *AuthService) Enroll(ctx context.Context, req *dto.EnrollRequest) (*dto.
 			return nil, fmt.Errorf("insert device: %w", err)
 		}
 		slog.Info("new device created via enrollment", "device_id", device.ID, "hostname", req.Hostname)
-	} else if err != nil {
+	case err != nil:
 		return nil, fmt.Errorf("query device: %w", err)
-	} else {
+	default:
 		// Existing device — update hostname and last_seen.
 		if _, err = tx.ExecContext(ctx,
 			"UPDATE devices SET hostname = $1, last_seen = NOW(), updated_at = NOW() WHERE id = $2",
