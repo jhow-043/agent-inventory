@@ -160,7 +160,6 @@ func runCreateUser() {
 	slog.SetDefault(logger)
 
 	db := database.Connect(cfg.DatabaseURL)
-	defer db.Close()
 
 	userRepo := repository.NewUserRepository(db)
 	tokenRepo := repository.NewTokenRepository(db)

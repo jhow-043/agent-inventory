@@ -84,7 +84,7 @@ func JWTAuth(jwtSecret string) gin.HandlerFunc {
 			role = "viewer"
 		}
 		c.Set("user_role", role)
-		
+
 		c.Next()
 	}
 }
