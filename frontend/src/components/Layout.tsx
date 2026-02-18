@@ -91,15 +91,17 @@ export default function Layout() {
         {/* Logo + Collapse toggle */}
         <div className="h-14 flex items-center border-b border-border-primary relative">
           <div className={`flex items-center overflow-hidden ${collapsed ? 'justify-center w-full' : 'px-5'}`}>
-            <svg className="w-6 h-6 text-accent flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
-            </svg>
-            {!collapsed && <span className="text-base font-semibold text-text-primary ml-2.5 whitespace-nowrap">Inventory</span>}
+            <div className="w-8 h-8 flex-shrink-0 bg-gradient-to-br from-accent to-accent-light rounded-lg flex items-center justify-center shadow-md shadow-accent/20">
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+              </svg>
+            </div>
+            {!collapsed && <span className="text-base font-bold text-text-primary ml-2.5 whitespace-nowrap tracking-tight">Inventory</span>}
           </div>
           {/* Collapse button */}
           <button
             onClick={toggleSidebar}
-            className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-bg-secondary border border-border-primary rounded-full flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors cursor-pointer z-10"
+            className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-bg-secondary border border-border-primary rounded-full flex items-center justify-center text-text-muted hover:text-accent hover:border-accent/50 transition-all duration-200 cursor-pointer z-10"
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -115,7 +117,7 @@ export default function Layout() {
               key={item.to}
               to={item.to}
               title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`relative flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 collapsed ? 'justify-center px-0' : 'px-3'
               } ${
                 isActive(item.to)
@@ -123,6 +125,10 @@ export default function Layout() {
                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
               }`}
             >
+              {/* Left border indicator for active item */}
+              {isActive(item.to) && !collapsed && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-accent rounded-r-full" />
+              )}
               {item.icon}
               {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
             </Link>
@@ -136,7 +142,7 @@ export default function Layout() {
             className={`flex items-center gap-3 py-2.5 text-sm ${collapsed ? 'justify-center px-0' : 'px-3'}`}
             title={collapsed && username ? username : undefined}
           >
-            <div className="w-5 h-5 flex-shrink-0 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-bold uppercase">
+            <div className="w-7 h-7 flex-shrink-0 rounded-full bg-gradient-to-br from-accent to-accent-light text-white flex items-center justify-center text-xs font-bold uppercase ring-2 ring-accent/20">
               {username ? username[0] : '?'}
             </div>
             {!collapsed && <span className="text-text-primary font-medium truncate">{username ?? '...'}</span>}
@@ -146,7 +152,7 @@ export default function Layout() {
           <button
             onClick={toggleTheme}
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            className={`flex items-center gap-3 w-full py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors cursor-pointer ${
+            className={`flex items-center gap-3 w-full py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-all duration-200 cursor-pointer ${
               collapsed ? 'justify-center px-0' : 'px-3'
             }`}
           >
@@ -157,7 +163,7 @@ export default function Layout() {
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className={`flex items-center gap-3 w-full py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors cursor-pointer ${
+            className={`flex items-center gap-3 w-full py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-danger hover:bg-danger/5 transition-all duration-200 cursor-pointer ${
               collapsed ? 'justify-center px-0' : 'px-3'
             }`}
             title={collapsed ? 'Logout' : undefined}

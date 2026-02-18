@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from '../api/departments';
+import { PageHeader, Button, Input, Modal } from '../components/ui';
 
 export default function Departments() {
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['departments'],
@@ -33,7 +35,10 @@ export default function Departments() {
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteDepartment(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['departments'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+      setDeleteTarget(null);
+    },
   });
 
   const departments = data?.departments ?? [];
@@ -55,58 +60,66 @@ export default function Departments() {
   };
 
   return (
-    <div>
-      <h1 className="text-xl font-semibold text-text-primary mb-6">Departments</h1>
+    <div className="animate-fade-in">
+      <PageHeader title="Departments" subtitle={`${departments.length} departments`} />
 
       {/* Create form */}
       <form onSubmit={handleCreate} className="flex gap-3 mb-6">
-        <input
-          type="text"
-          placeholder="New department name..."
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          className="bg-bg-secondary border border-border-primary rounded px-3 py-2 text-sm text-text-primary placeholder-text-muted w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-accent"
-        />
-        <button
+        <div className="w-full sm:w-64">
+          <Input
+            placeholder="New department name..."
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+        </div>
+        <Button
           type="submit"
           disabled={createMut.isPending || !newName.trim()}
-          className="px-4 py-2 text-sm bg-accent text-white rounded hover:bg-accent/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          loading={createMut.isPending}
         >
-          {createMut.isPending ? 'Creating...' : 'Add'}
-        </button>
+          Add
+        </Button>
       </form>
 
       {error && <p className="text-danger mb-4">Failed to load departments.</p>}
 
       {isLoading ? (
-        <p className="text-text-muted">Loading...</p>
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-14 bg-bg-secondary rounded-xl border border-border-primary animate-pulse" />
+          ))}
+        </div>
       ) : departments.length === 0 ? (
-        <p className="text-text-muted">No departments yet.</p>
+        <div className="text-center py-12 text-text-muted">
+          <svg className="w-10 h-10 mx-auto mb-3 text-text-muted/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+          </svg>
+          <p className="text-sm">No departments yet.</p>
+        </div>
       ) : (
-        <div className="bg-bg-secondary rounded-lg border border-border-primary overflow-hidden">
+        <div className="bg-bg-secondary rounded-xl border border-border-primary overflow-hidden shadow-sm animate-slide-up">
           <table className="min-w-full divide-y divide-border-primary">
-            <thead className="bg-bg-tertiary">
+            <thead className="bg-bg-tertiary/50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">Created</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Created</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-text-muted uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-primary">
               {departments.map((d) => (
-                <tr key={d.id} className="hover:bg-bg-tertiary transition-colors">
+                <tr key={d.id} className="hover:bg-bg-tertiary/50 transition-colors">
                   <td className="px-4 py-3 text-sm text-text-primary">
                     {editingId === d.id ? (
-                      <input
-                        type="text"
+                      <Input
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleUpdate(d.id)}
-                        className="bg-bg-primary border border-border-primary rounded px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent w-48"
+                        className="w-48"
                         autoFocus
                       />
                     ) : (
-                      d.name
+                      <span className="font-medium">{d.name}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm text-text-muted">
@@ -115,35 +128,21 @@ export default function Departments() {
                   <td className="px-4 py-3 text-sm text-right">
                     {editingId === d.id ? (
                       <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleUpdate(d.id)}
-                          disabled={updateMut.isPending}
-                          className="px-2 py-1 text-xs bg-success/10 text-success rounded hover:bg-success/20 transition-colors cursor-pointer"
-                        >
+                        <Button variant="success" size="sm" onClick={() => handleUpdate(d.id)} loading={updateMut.isPending}>
                           Save
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="px-2 py-1 text-xs bg-bg-tertiary text-text-muted rounded hover:bg-border-primary transition-colors cursor-pointer"
-                        >
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                     ) : (
                       <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => startEdit(d.id, d.name)}
-                          className="px-2 py-1 text-xs bg-bg-tertiary text-text-secondary rounded hover:bg-border-primary transition-colors cursor-pointer"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => startEdit(d.id, d.name)}>
                           Edit
-                        </button>
-                        <button
-                          onClick={() => { if (confirm('Delete this department?')) deleteMut.mutate(d.id); }}
-                          disabled={deleteMut.isPending}
-                          className="px-2 py-1 text-xs bg-danger/10 text-danger rounded hover:bg-danger/20 transition-colors cursor-pointer"
-                        >
+                        </Button>
+                        <Button variant="danger" size="sm" onClick={() => setDeleteTarget({ id: d.id, name: d.name })}>
                           Delete
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </td>
@@ -153,6 +152,32 @@ export default function Departments() {
           </table>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete Department"
+        actions={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => deleteTarget && deleteMut.mutate(deleteTarget.id)}
+              loading={deleteMut.isPending}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-text-secondary">
+          Are you sure you want to delete <strong className="text-text-primary">{deleteTarget?.name}</strong>? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

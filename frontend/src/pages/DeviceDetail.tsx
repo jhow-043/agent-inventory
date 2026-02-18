@@ -1,10 +1,11 @@
-// Device detail page with dark theme, status control, department assignment, hardware history, and remote access section.
+// Device detail page with status control, department assignment, hardware history, and remote access section.
 
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getDevice, updateDeviceStatus, updateDeviceDepartment } from '../api/devices';
 import { getDepartments } from '../api/departments';
+import { Button, Badge, Select, Card, CardHeader, CardContent } from '../components/ui';
 import type { RemoteTool, Hardware } from '../types';
 
 function formatBytes(bytes: number): string {
@@ -46,7 +47,13 @@ export default function DeviceDetail() {
     },
   });
 
-  if (isLoading) return <p className="text-text-muted">Loading...</p>;
+  if (isLoading) return (
+    <div className="animate-fade-in space-y-4">
+      <div className="h-4 w-32 bg-bg-tertiary rounded animate-pulse" />
+      <div className="h-8 w-48 bg-bg-tertiary rounded animate-pulse" />
+      <div className="h-40 bg-bg-secondary rounded-xl border border-border-primary animate-pulse" />
+    </div>
+  );
   if (error) return <p className="text-danger">Failed to load device details.</p>;
   if (!data) return null;
 
@@ -55,39 +62,45 @@ export default function DeviceDetail() {
   const isInactive = device.status === 'inactive';
 
   return (
-    <div>
-      <Link to="/devices" className="text-sm text-accent hover:underline mb-4 inline-block">
-        &larr; Back to devices
+    <div className="animate-fade-in">
+      <Link to="/devices" className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent-hover font-medium transition-colors mb-4">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Back to devices
       </Link>
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-text-primary">{device.hostname}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-bold text-text-primary">{device.hostname}</h1>
+          <Badge variant={isInactive ? 'warning' : 'success'} dot>
+            {isInactive ? 'Inactive' : 'Active'}
+          </Badge>
+        </div>
         <div className="flex items-center gap-3">
           {/* Department selector */}
-          <select
-            value={device.department_id ?? ''}
-            onChange={(e) => departmentMutation.mutate(e.target.value || null)}
-            disabled={departmentMutation.isPending}
-            className="bg-bg-secondary border border-border-primary rounded px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
-          >
-            <option value="">No Department</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
+          <div className="w-48">
+            <Select
+              value={device.department_id ?? ''}
+              onChange={(e) => departmentMutation.mutate(e.target.value || null)}
+              disabled={departmentMutation.isPending}
+            >
+              <option value="">No Department</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </Select>
+          </div>
 
           {/* Status toggle */}
-          <button
+          <Button
+            variant={isInactive ? 'success' : 'danger'}
+            size="sm"
             onClick={() => statusMutation.mutate(isInactive ? 'active' : 'inactive')}
-            disabled={statusMutation.isPending}
-            className={`px-3 py-1.5 text-sm rounded border transition-colors cursor-pointer ${
-              isInactive
-                ? 'bg-success/10 text-success border-success/30 hover:bg-success/20'
-                : 'bg-warning/10 text-warning border-warning/30 hover:bg-warning/20'
-            }`}
+            loading={statusMutation.isPending}
           >
-            {statusMutation.isPending ? '...' : isInactive ? 'Reactivate' : 'Deactivate'}
-          </button>
+            {isInactive ? 'Reactivate' : 'Deactivate'}
+          </Button>
         </div>
       </div>
 
@@ -373,17 +386,17 @@ function RemoteToolRow({ tool }: { tool: RemoteTool }) {
 }
 
 // ---------------------------------------------------------------------------
-// Reusable sub-components (dark themed)
+// Reusable sub-components
 // ---------------------------------------------------------------------------
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-bg-secondary rounded-lg border border-border-primary mb-6 overflow-hidden">
-      <div className="px-4 py-3 bg-bg-tertiary border-b border-border-primary">
+    <Card className="mb-6">
+      <CardHeader>
         <h2 className="text-sm font-semibold text-text-secondary">{title}</h2>
-      </div>
-      <div className="p-4">{children}</div>
-    </div>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   );
 }
 
