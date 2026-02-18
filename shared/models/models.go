@@ -139,3 +139,15 @@ type AuditLog struct {
 	UserAgent    string     `json:"user_agent,omitempty" db:"user_agent"`
 	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
 }
+
+// DeviceActivityLog tracks changes detected during inventory submissions.
+type DeviceActivityLog struct {
+	ID           uuid.UUID `json:"id" db:"id"`
+	DeviceID     uuid.UUID `json:"device_id" db:"device_id"`
+	ActivityType string    `json:"activity_type" db:"activity_type"`
+	Description  string    `json:"description" db:"description"`
+	OldValue     *string   `json:"old_value,omitempty" db:"old_value"`
+	NewValue     *string   `json:"new_value,omitempty" db:"new_value"`
+	Metadata     *string   `json:"metadata,omitempty" db:"metadata"` // JSONB
+	DetectedAt   time.Time `json:"detected_at" db:"detected_at"`
+}

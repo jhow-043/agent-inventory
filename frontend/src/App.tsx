@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
+import AdminRoute from './components/AdminRoute'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import DeviceList from './pages/DeviceList'
@@ -33,8 +34,8 @@ function App() {
           <Route path="/devices/:id" element={<DeviceDetail />} />
           <Route path="/departments" element={<Departments />} />
           <Route path="/departments/:id" element={<DepartmentDetail />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/audit-logs" element={<AuditLogs />} />
+          <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
+          <Route path="/audit-logs" element={<AdminRoute><AuditLogs /></AdminRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

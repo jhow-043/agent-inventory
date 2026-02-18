@@ -128,6 +128,24 @@ export interface DeviceDetailResponse {
   hardware_history: HardwareHistory[];
 }
 
+export interface DeviceActivityLog {
+  id: string;
+  device_id: string;
+  activity_type: 'user_login' | 'software_installed' | 'software_removed' | 'os_updated' | 'boot';
+  description: string;
+  old_value: string | null;
+  new_value: string | null;
+  metadata: string | null;
+  detected_at: string;
+}
+
+export interface DeviceActivityResponse {
+  activities: DeviceActivityLog[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface DepartmentListResponse {
   departments: Department[];
   total: number;

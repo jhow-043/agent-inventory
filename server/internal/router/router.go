@@ -62,6 +62,7 @@ func Setup(
 			protected.GET("/devices/export", deviceHandler.ExportCSV)
 			protected.GET("/devices/:id", deviceHandler.GetDevice)
 			protected.GET("/devices/:id/hardware-history", deviceHandler.GetHardwareHistory)
+			protected.GET("/devices/:id/activity", deviceHandler.GetDeviceActivity)
 			protected.GET("/departments", departmentHandler.ListDepartments)
 			protected.GET("/users", userHandler.ListUsers)
 		}

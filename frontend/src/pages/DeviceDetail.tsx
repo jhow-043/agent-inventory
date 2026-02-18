@@ -1,14 +1,14 @@
-// Device detail page with status control, department assignment, hardware history, and remote access section.
+// Device detail page with status control, department assignment, hardware/activity history, and remote access section.
 
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getDevice, updateDeviceStatus, updateDeviceDepartment, deleteDevice } from '../api/devices';
+import { getDevice, updateDeviceStatus, updateDeviceDepartment, deleteDevice, getDeviceActivity } from '../api/devices';
 import { getDepartments } from '../api/departments';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { Button, Badge, Select, Card, CardHeader, CardContent, Modal } from '../components/ui';
-import type { RemoteTool, Hardware } from '../types';
+import type { RemoteTool, Hardware, DeviceActivityLog } from '../types';
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -61,10 +61,17 @@ export default function DeviceDetail() {
   const toast = useToast();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [activityPage, setActivityPage] = useState(1);
   const { data, isLoading, error } = useQuery({
     queryKey: ['device', id],
     queryFn: () => getDevice(id!),
     enabled: !!id,
+  });
+
+  const { data: activityData, isLoading: activityLoading } = useQuery({
+    queryKey: ['device-activity', id, activityPage],
+    queryFn: () => getDeviceActivity(id!, activityPage),
+    enabled: !!id && activeTab === 'history',
   });
 
   const { data: deptData } = useQuery({
@@ -462,7 +469,51 @@ export default function DeviceDetail() {
 
         {activeTab === 'history' && (
           <>
-            {hardware_history && hardware_history.length > 0 ? (
+            {/* ── Activity Log ──────────────────────────────────────────── */}
+            <Section title="Histórico de Atividades">
+              {activityLoading ? (
+                <p className="text-sm text-text-muted py-4">Carregando...</p>
+              ) : activityData && activityData.activities && activityData.activities.length > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    {activityData.activities.map((a: DeviceActivityLog) => (
+                      <ActivityRow key={a.id} activity={a} />
+                    ))}
+                  </div>
+                  {activityData.total > activityData.limit && (
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-border-primary">
+                      <span className="text-xs text-text-muted">
+                        Página {activityData.page} de {Math.ceil(activityData.total / activityData.limit)}
+                        {' '}({activityData.total} registros)
+                      </span>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={activityPage <= 1}
+                          onClick={() => setActivityPage((p) => p - 1)}
+                        >
+                          Anterior
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={activityPage >= Math.ceil(activityData.total / activityData.limit)}
+                          onClick={() => setActivityPage((p) => p + 1)}
+                        >
+                          Próxima
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <EmptyState message="Nenhuma atividade registrada para este dispositivo." />
+              )}
+            </Section>
+
+            {/* ── Hardware History ──────────────────────────────────────── */}
+            {hardware_history && hardware_history.length > 0 && (
               <Section title="Alterações de Hardware">
                 <div className="space-y-3">
                   {hardware_history.map((h) => {
@@ -489,10 +540,74 @@ export default function DeviceDetail() {
                   })}
                 </div>
               </Section>
-            ) : (
-              <EmptyState message="Nenhuma alteração de hardware registrada." />
             )}
           </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Activity Row — renders a single activity log entry with icon and colors
+// ---------------------------------------------------------------------------
+
+const ACTIVITY_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
+  user_login: {
+    label: 'Login',
+    color: 'text-blue-500 bg-blue-500/10',
+    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>,
+  },
+  software_installed: {
+    label: 'Instalação',
+    color: 'text-green-500 bg-green-500/10',
+    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>,
+  },
+  software_removed: {
+    label: 'Remoção',
+    color: 'text-red-500 bg-red-500/10',
+    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" /></svg>,
+  },
+  os_updated: {
+    label: 'Atualização OS',
+    color: 'text-purple-500 bg-purple-500/10',
+    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" /></svg>,
+  },
+  boot: {
+    label: 'Reinício',
+    color: 'text-yellow-500 bg-yellow-500/10',
+    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" /></svg>,
+  },
+};
+
+function ActivityRow({ activity }: { activity: DeviceActivityLog }) {
+  const cfg = ACTIVITY_CONFIG[activity.activity_type] ?? {
+    label: activity.activity_type,
+    color: 'text-text-muted bg-bg-tertiary',
+    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+  };
+
+  return (
+    <div className="flex items-start gap-3 py-2.5 px-3 rounded-lg hover:bg-bg-tertiary/50 transition-colors">
+      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${cfg.color}`}>
+        {cfg.icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${cfg.color}`}>
+            {cfg.label}
+          </span>
+          <span className="text-xs text-text-muted">
+            {new Date(activity.detected_at).toLocaleString('pt-BR')}
+          </span>
+        </div>
+        <p className="text-sm text-text-primary mt-0.5">{activity.description}</p>
+        {(activity.old_value || activity.new_value) && activity.activity_type === 'user_login' && (
+          <div className="flex items-center gap-1.5 mt-1 text-xs text-text-muted">
+            {activity.old_value && <code className="bg-red-500/10 text-red-400 px-1 rounded">{activity.old_value}</code>}
+            {activity.old_value && activity.new_value && <span>→</span>}
+            {activity.new_value && <code className="bg-green-500/10 text-green-400 px-1 rounded">{activity.new_value}</code>}
+          </div>
         )}
       </div>
     </div>

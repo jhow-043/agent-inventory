@@ -19,13 +19,14 @@ import (
 
 // DeviceHandler handles device listing and detail endpoints.
 type DeviceHandler struct {
-	service     *service.DeviceService
-	auditLogger *middleware.AuditLogger
+	service      *service.DeviceService
+	auditLogger  *middleware.AuditLogger
+	activityRepo *repository.DeviceActivityRepository
 }
 
 // NewDeviceHandler creates a new DeviceHandler.
-func NewDeviceHandler(svc *service.DeviceService, auditLogger *middleware.AuditLogger) *DeviceHandler {
-	return &DeviceHandler{service: svc, auditLogger: auditLogger}
+func NewDeviceHandler(svc *service.DeviceService, auditLogger *middleware.AuditLogger, activityRepo *repository.DeviceActivityRepository) *DeviceHandler {
+	return &DeviceHandler{service: svc, auditLogger: auditLogger, activityRepo: activityRepo}
 }
 
 // ListDevices returns devices with pagination, sorting, and filtering.
@@ -225,6 +226,33 @@ func (h *DeviceHandler) GetHardwareHistory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, history.HardwareHistory)
+}
+
+// GetDeviceActivity returns the activity log for a device.
+func (h *DeviceHandler) GetDeviceActivity(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid device ID"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset := (page - 1) * limit
+
+	logs, total, err := h.activityRepo.ListByDevice(c.Request.Context(), id, limit, offset)
+	if err != nil {
+		slog.Error("failed to get device activity", "error", err, "device_id", id)
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to get device activity"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"activities": logs,
+		"total":      total,
+		"page":       page,
+		"limit":      limit,
+	})
 }
 
 // ExportCSV streams a CSV file of devices matching the current filters.

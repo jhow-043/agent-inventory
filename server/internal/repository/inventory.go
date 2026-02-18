@@ -16,12 +16,13 @@ import (
 
 // InventoryRepository handles the transactional upsert of a full inventory snapshot.
 type InventoryRepository struct {
-	db *sqlx.DB
+	db           *sqlx.DB
+	activityRepo *DeviceActivityRepository
 }
 
 // NewInventoryRepository creates a new InventoryRepository.
-func NewInventoryRepository(db *sqlx.DB) *InventoryRepository {
-	return &InventoryRepository{db: db}
+func NewInventoryRepository(db *sqlx.DB, activityRepo *DeviceActivityRepository) *InventoryRepository {
+	return &InventoryRepository{db: db, activityRepo: activityRepo}
 }
 
 // Save persists an entire inventory snapshot inside a single database transaction.
@@ -32,6 +33,103 @@ func (r *InventoryRepository) Save(ctx context.Context, deviceID uuid.UUID, req 
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback() //nolint:errcheck
+
+	// ── Detect changes before updating ───────────────────────────────
+	var activities []ActivityEntry
+
+	// Fetch the current device state for comparison.
+	var existing models.Device
+	deviceExists := true
+	if err := tx.GetContext(ctx, &existing, "SELECT * FROM devices WHERE id = $1", deviceID); err != nil {
+		if err == sql.ErrNoRows {
+			deviceExists = false
+		} else {
+			return fmt.Errorf("fetch existing device: %w", err)
+		}
+	}
+
+	if deviceExists {
+		// 1. User login change
+		if existing.LoggedInUser != req.LoggedInUser && req.LoggedInUser != "" {
+			oldVal := existing.LoggedInUser
+			newVal := req.LoggedInUser
+			desc := fmt.Sprintf("Usuário logado alterado de '%s' para '%s'", oldVal, newVal)
+			if oldVal == "" {
+				desc = fmt.Sprintf("Usuário '%s' fez login", newVal)
+			}
+			activities = append(activities, ActivityEntry{
+				DeviceID: deviceID, ActivityType: "user_login",
+				Description: desc, OldValue: strPtr(oldVal), NewValue: strPtr(newVal),
+			})
+		}
+
+		// 2. OS update
+		if existing.OSVersion != req.OSVersion || existing.OSBuild != req.OSBuild {
+			oldVer := fmt.Sprintf("%s %s (Build %s)", existing.OSName, existing.OSVersion, existing.OSBuild)
+			newVer := fmt.Sprintf("%s %s (Build %s)", req.OSName, req.OSVersion, req.OSBuild)
+			activities = append(activities, ActivityEntry{
+				DeviceID: deviceID, ActivityType: "os_updated",
+				Description: fmt.Sprintf("Sistema operacional atualizado de '%s' para '%s'", oldVer, newVer),
+				OldValue:    strPtr(oldVer), NewValue: strPtr(newVer),
+			})
+		}
+
+		// 3. Reboot detection
+		if existing.LastBootTime != nil && req.LastBootTime != nil && !existing.LastBootTime.Equal(*req.LastBootTime) {
+			activities = append(activities, ActivityEntry{
+				DeviceID: deviceID, ActivityType: "boot",
+				Description: fmt.Sprintf("Dispositivo reiniciado (boot: %s)", req.LastBootTime.Format("02/01/2006 15:04")),
+				OldValue:    strPtr(existing.LastBootTime.Format("2006-01-02T15:04:05Z")),
+				NewValue:    strPtr(req.LastBootTime.Format("2006-01-02T15:04:05Z")),
+			})
+		}
+
+		// 4. Software changes — compare current vs incoming
+		var currentSoftware []models.InstalledSoftware
+		if err := tx.SelectContext(ctx, &currentSoftware, "SELECT * FROM installed_software WHERE device_id = $1", deviceID); err != nil {
+			return fmt.Errorf("fetch existing software: %w", err)
+		}
+
+		// Build sets for comparison (name|version as key)
+		currentSet := make(map[string]models.InstalledSoftware, len(currentSoftware))
+		for _, s := range currentSoftware {
+			currentSet[s.Name+"|"+s.Version] = s
+		}
+		incomingSet := make(map[string]dto.SoftwareData, len(req.Software))
+		for _, s := range req.Software {
+			incomingSet[s.Name+"|"+s.Version] = s
+		}
+
+		// Detect new software installed
+		for key, s := range incomingSet {
+			if _, exists := currentSet[key]; !exists {
+				meta, _ := json.Marshal(map[string]string{
+					"name": s.Name, "version": s.Version, "vendor": s.Vendor,
+				})
+				metaStr := string(meta)
+				activities = append(activities, ActivityEntry{
+					DeviceID: deviceID, ActivityType: "software_installed",
+					Description: fmt.Sprintf("Software instalado: %s %s", s.Name, s.Version),
+					NewValue:    strPtr(s.Name), Metadata: &metaStr,
+				})
+			}
+		}
+
+		// Detect software removed
+		for key, s := range currentSet {
+			if _, exists := incomingSet[key]; !exists {
+				meta, _ := json.Marshal(map[string]string{
+					"name": s.Name, "version": s.Version, "vendor": s.Vendor,
+				})
+				metaStr := string(meta)
+				activities = append(activities, ActivityEntry{
+					DeviceID: deviceID, ActivityType: "software_removed",
+					Description: fmt.Sprintf("Software removido: %s %s", s.Name, s.Version),
+					OldValue:    strPtr(s.Name), Metadata: &metaStr,
+				})
+			}
+		}
+	}
 
 	// Upsert device
 	if _, err = tx.ExecContext(ctx, `
@@ -196,5 +294,15 @@ func (r *InventoryRepository) Save(ctx context.Context, deviceID uuid.UUID, req 
 		}
 	}
 
+	// ── Persist detected activity changes ────────────────────────────
+	if err := r.activityRepo.InsertBatch(ctx, tx, activities); err != nil {
+		return fmt.Errorf("insert activity logs: %w", err)
+	}
+
 	return tx.Commit()
+}
+
+// strPtr returns a pointer to the given string.
+func strPtr(s string) *string {
+	return &s
 }
