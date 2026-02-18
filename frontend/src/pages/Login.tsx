@@ -38,10 +38,8 @@ export default function Login() {
       <div className="w-full max-w-sm relative z-10 animate-scale-in">
         {/* Logo */}
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="w-14 h-14 bg-gradient-to-br from-accent to-accent-light rounded-2xl flex items-center justify-center shadow-lg shadow-accent/25">
-            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
-            </svg>
+          <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg shadow-accent/25 bg-bg-tertiary p-1.5">
+            <img src="/favicon.ico" alt="Inventory" className="w-full h-full object-contain" />
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold text-text-primary">Inventory</h1>

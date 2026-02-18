@@ -121,6 +121,94 @@ func (h *DeviceHandler) UpdateDepartment(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.MessageResponse{Message: "department updated"})
 }
 
+// DeleteDevice deletes a device and all related data.
+func (h *DeviceHandler) DeleteDevice(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid device ID"})
+		return
+	}
+
+	device, err := h.service.DeleteDevice(c.Request.Context(), id)
+	if err != nil {
+		slog.Error("failed to delete device", "error", err, "device_id", id)
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+		return
+	}
+
+	h.auditLogger.Log(c, "device.delete", "device", &id, map[string]interface{}{
+		"hostname":      device.Hostname,
+		"serial_number": device.SerialNumber,
+	})
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "device deleted successfully"})
+}
+
+// BulkUpdateStatus changes the status of multiple devices.
+func (h *DeviceHandler) BulkUpdateStatus(c *gin.Context) {
+	var req dto.BulkDeviceStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid request: " + err.Error()})
+		return
+	}
+
+	affected, err := h.service.BulkUpdateStatus(c.Request.Context(), req.DeviceIDs, req.Status)
+	if err != nil {
+		slog.Error("failed to bulk update status", "error", err)
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to update devices"})
+		return
+	}
+
+	for _, id := range req.DeviceIDs {
+		idCopy := id
+		h.auditLogger.Log(c, "device.status.update", "device", &idCopy, map[string]interface{}{"new_status": req.Status, "bulk": true})
+	}
+	c.JSON(http.StatusOK, dto.BulkActionResponse{Affected: int(affected), Message: fmt.Sprintf("%d device(s) updated", affected)})
+}
+
+// BulkUpdateDepartment assigns a department to multiple devices.
+func (h *DeviceHandler) BulkUpdateDepartment(c *gin.Context) {
+	var req dto.BulkDeviceDepartmentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid request: " + err.Error()})
+		return
+	}
+
+	affected, err := h.service.BulkUpdateDepartment(c.Request.Context(), req.DeviceIDs, req.DepartmentID)
+	if err != nil {
+		slog.Error("failed to bulk update department", "error", err)
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to update devices"})
+		return
+	}
+
+	for _, id := range req.DeviceIDs {
+		idCopy := id
+		h.auditLogger.Log(c, "device.department.update", "device", &idCopy, map[string]interface{}{"department_id": req.DepartmentID, "bulk": true})
+	}
+	c.JSON(http.StatusOK, dto.BulkActionResponse{Affected: int(affected), Message: fmt.Sprintf("%d device(s) updated", affected)})
+}
+
+// BulkDelete deletes multiple devices.
+func (h *DeviceHandler) BulkDelete(c *gin.Context) {
+	var req dto.BulkDeviceDeleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid request: " + err.Error()})
+		return
+	}
+
+	affected, err := h.service.BulkDelete(c.Request.Context(), req.DeviceIDs)
+	if err != nil {
+		slog.Error("failed to bulk delete devices", "error", err)
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to delete devices"})
+		return
+	}
+
+	for _, id := range req.DeviceIDs {
+		idCopy := id
+		h.auditLogger.Log(c, "device.delete", "device", &idCopy, map[string]interface{}{"bulk": true})
+	}
+	c.JSON(http.StatusOK, dto.BulkActionResponse{Affected: int(affected), Message: fmt.Sprintf("%d device(s) deleted", affected)})
+}
+
 // GetHardwareHistory returns hardware change snapshots for a device.
 func (h *DeviceHandler) GetHardwareHistory(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))

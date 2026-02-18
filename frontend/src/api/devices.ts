@@ -56,6 +56,43 @@ export async function getHardwareHistory(id: string): Promise<HardwareHistory[]>
   return request<HardwareHistory[]>(`/devices/${id}/hardware-history`);
 }
 
+export async function deleteDevice(id: string): Promise<{ message: string }> {
+  return request<{ message: string }>(`/devices/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// Bulk actions
+
+export interface BulkActionResponse {
+  affected: number;
+  message: string;
+}
+
+export async function bulkUpdateStatus(deviceIds: string[], status: 'active' | 'inactive'): Promise<BulkActionResponse> {
+  return request<BulkActionResponse>('/devices/bulk/status', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ device_ids: deviceIds, status }),
+  });
+}
+
+export async function bulkUpdateDepartment(deviceIds: string[], departmentId: string | null): Promise<BulkActionResponse> {
+  return request<BulkActionResponse>('/devices/bulk/department', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ device_ids: deviceIds, department_id: departmentId }),
+  });
+}
+
+export async function bulkDeleteDevices(deviceIds: string[]): Promise<BulkActionResponse> {
+  return request<BulkActionResponse>('/devices/bulk/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ device_ids: deviceIds }),
+  });
+}
+
 export async function exportDevicesCSV(params: DeviceListParams = {}): Promise<void> {
   const q = buildDeviceQS(params);
   const res = await fetch(`/api/v1/devices/export${q ? `?${q}` : ''}`, {

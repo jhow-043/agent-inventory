@@ -147,6 +147,40 @@ func (s *AuthService) CreateUser(ctx context.Context, username, password, role s
 	return s.userRepo.Create(ctx, user)
 }
 
+// UpdateUser updates a dashboard user's info. Only non-empty fields are applied.
+// Prevents a user from changing their own role (to avoid admin lock-out).
+func (s *AuthService) UpdateUser(ctx context.Context, requestingUserID, targetUserID uuid.UUID, username, password, role string) error {
+	// Fetch existing user.
+	user, err := s.userRepo.GetByID(ctx, targetUserID)
+	if err != nil {
+		return fmt.Errorf("user not found")
+	}
+
+	// Apply only non-empty fields.
+	if username != "" {
+		user.Username = username
+	}
+	if password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+		if err != nil {
+			return fmt.Errorf("hash password: %w", err)
+		}
+		user.PasswordHash = string(hash)
+	}
+	if role != "" {
+		// Prevent changing own role.
+		if requestingUserID == targetUserID {
+			return fmt.Errorf("cannot change your own role")
+		}
+		if role != "admin" && role != "viewer" {
+			return fmt.Errorf("invalid role: must be admin or viewer")
+		}
+		user.Role = role
+	}
+
+	return s.userRepo.Update(ctx, targetUserID, user.Username, user.PasswordHash, user.Role)
+}
+
 // ListUsers returns all dashboard users.
 func (s *AuthService) ListUsers(ctx context.Context) ([]models.User, error) {
 	return s.userRepo.List(ctx)

@@ -177,6 +177,7 @@ export default function Dashboard() {
                         fontSize: '0.75rem',
                         color: 'var(--color-text-primary)',
                       }}
+                      itemStyle={{ color: 'var(--color-text-primary)' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
