@@ -72,6 +72,42 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, dto.MessageResponse{Message: "user created successfully"})
 }
 
+// UpdateUser updates a dashboard user.
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+	targetID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user ID"})
+		return
+	}
+
+	var req dto.UpdateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	if req.Username == "" && req.Password == "" && req.Role == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "at least one field must be provided"})
+		return
+	}
+
+	sub, _ := c.Get("user_id")
+	requestingUserID, err := uuid.Parse(sub.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "invalid session"})
+		return
+	}
+
+	if err := h.authService.UpdateUser(c.Request.Context(), requestingUserID, targetID, req.Username, req.Password, req.Role); err != nil {
+		slog.Error("failed to update user", "error", err, "target_id", targetID)
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	h.auditLogger.Log(c, "user.update", "user", &targetID, map[string]interface{}{"target_user_id": targetID, "username": req.Username, "role": req.Role})
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "user updated successfully"})
+}
+
 // DeleteUser deletes a dashboard user by ID.
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	targetID, err := uuid.Parse(c.Param("id"))

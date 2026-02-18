@@ -6,6 +6,7 @@ import * as authApi from '../api/auth';
 interface AuthContextType {
   isAuthenticated: boolean;
   username: string | null;
+  role: string | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -21,6 +22,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState<string | null>(() => {
     return localStorage.getItem('username');
   });
+  const [role, setRole] = useState<string | null>(() => {
+    return localStorage.getItem('role');
+  });
 
   // Fetch current user info when authenticated.
   useEffect(() => {
@@ -29,6 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((me) => {
         setUsername(me.username);
         localStorage.setItem('username', me.username);
+        setRole(me.role);
+        localStorage.setItem('role', me.role);
       })
       .catch(() => {
         // 401 will auto-redirect via client.ts
@@ -44,6 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await authApi.getMe();
       setUsername(me.username);
       localStorage.setItem('username', me.username);
+      setRole(me.role);
+      localStorage.setItem('role', me.role);
     } catch { /* ignore */ }
   }, []);
 
@@ -51,12 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authApi.logout();
     localStorage.removeItem('authenticated');
     localStorage.removeItem('username');
+    localStorage.removeItem('role');
     setIsAuthenticated(false);
     setUsername(null);
+    setRole(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, username, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, username, role, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,11 +1,12 @@
 // Device detail page with status control, department assignment, hardware history, and remote access section.
 
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getDevice, updateDeviceStatus, updateDeviceDepartment } from '../api/devices';
+import { getDevice, updateDeviceStatus, updateDeviceDepartment, deleteDevice } from '../api/devices';
 import { getDepartments } from '../api/departments';
-import { Button, Badge, Select, Card, CardHeader, CardContent } from '../components/ui';
+import { useAuth } from '../hooks/useAuth';
+import { Button, Badge, Select, Card, CardHeader, CardContent, Modal } from '../components/ui';
 import type { RemoteTool, Hardware } from '../types';
 
 function formatBytes(bytes: number): string {
@@ -18,7 +19,10 @@ function formatBytes(bytes: number): string {
 
 export default function DeviceDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { role } = useAuth();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const { data, isLoading, error } = useQuery({
     queryKey: ['device', id],
     queryFn: () => getDevice(id!),
@@ -44,6 +48,15 @@ export default function DeviceDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['device', id] });
       queryClient.invalidateQueries({ queryKey: ['devices'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteDevice(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      navigate('/devices');
     },
   });
 
@@ -78,31 +91,84 @@ export default function DeviceDetail() {
           </Badge>
         </div>
         <div className="flex items-center gap-3">
-          {/* Department selector */}
-          <div className="w-48">
-            <Select
-              value={device.department_id ?? ''}
-              onChange={(e) => departmentMutation.mutate(e.target.value || null)}
-              disabled={departmentMutation.isPending}
-            >
-              <option value="">No Department</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </Select>
-          </div>
+          {/* Department selector — admin only */}
+          {role === 'admin' && (
+            <div className="w-48">
+              <Select
+                value={device.department_id ?? ''}
+                onChange={(e) => departmentMutation.mutate(e.target.value || null)}
+                disabled={departmentMutation.isPending}
+              >
+                <option value="">No Department</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </Select>
+            </div>
+          )}
 
-          {/* Status toggle */}
-          <Button
-            variant={isInactive ? 'success' : 'danger'}
-            size="sm"
-            onClick={() => statusMutation.mutate(isInactive ? 'active' : 'inactive')}
-            loading={statusMutation.isPending}
-          >
-            {isInactive ? 'Reactivate' : 'Deactivate'}
-          </Button>
+          {/* Status toggle — admin only */}
+          {role === 'admin' && (
+            <Button
+              variant={isInactive ? 'success' : 'secondary'}
+              size="sm"
+              onClick={() => statusMutation.mutate(isInactive ? 'active' : 'inactive')}
+              loading={statusMutation.isPending}
+              icon={
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                </svg>
+              }
+            >
+              {isInactive ? 'Reactivate' : 'Deactivate'}
+            </Button>
+          )}
+
+          {/* Delete device — admin only */}
+          {role === 'admin' && (
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => setShowDeleteModal(true)}
+              icon={
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+              }
+            >
+              Delete
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Device"
+        actions={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => deleteMutation.mutate()}
+              loading={deleteMutation.isPending}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-text-secondary">
+          Are you sure you want to permanently delete <strong className="text-text-primary">{device.hostname}</strong>?
+          All related data (hardware, disks, network interfaces, software, remote tools) will be removed.
+          This action cannot be undone.
+        </p>
+      </Modal>
 
       {/* Remote Access Tools */}
       <Section title="Remote Access">

@@ -95,3 +95,30 @@ func (s *DeviceService) UpdateDepartment(ctx context.Context, id uuid.UUID, dept
 func (s *DeviceService) ListForExport(ctx context.Context, p repository.ListParams) ([]models.Device, error) {
 	return s.deviceRepo.ListForExport(ctx, p)
 }
+
+// BulkUpdateStatus changes the status of multiple devices at once.
+func (s *DeviceService) BulkUpdateStatus(ctx context.Context, ids []uuid.UUID, status string) (int64, error) {
+	return s.deviceRepo.BulkUpdateStatus(ctx, ids, status)
+}
+
+// BulkUpdateDepartment sets the department for multiple devices.
+func (s *DeviceService) BulkUpdateDepartment(ctx context.Context, ids []uuid.UUID, deptID *uuid.UUID) (int64, error) {
+	return s.deviceRepo.BulkUpdateDepartment(ctx, ids, deptID)
+}
+
+// BulkDelete removes multiple devices and all their related data.
+func (s *DeviceService) BulkDelete(ctx context.Context, ids []uuid.UUID) (int64, error) {
+	return s.deviceRepo.BulkDelete(ctx, ids)
+}
+
+// DeleteDevice removes a device and all its related data. Returns the device info for audit logging.
+func (s *DeviceService) DeleteDevice(ctx context.Context, id uuid.UUID) (*models.Device, error) {
+	device, err := s.deviceRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("device not found")
+	}
+	if err := s.deviceRepo.Delete(ctx, id); err != nil {
+		return nil, fmt.Errorf("delete device: %w", err)
+	}
+	return device, nil
+}

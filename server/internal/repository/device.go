@@ -47,6 +47,22 @@ type ListResult struct {
 	Total   int
 }
 
+// Delete removes a device by ID. All related data is cascaded by the database.
+func (r *DeviceRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	result, err := r.db.ExecContext(ctx, "DELETE FROM devices WHERE id = $1", id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("device not found")
+	}
+	return nil
+}
+
 // List returns devices with filtering, sorting, and pagination.
 // By default only active devices are returned; pass Status="inactive" to see inactive ones.
 func (r *DeviceRepository) List(ctx context.Context, p ListParams) (*ListResult, error) {
@@ -251,6 +267,57 @@ func (r *DeviceRepository) ListForExport(ctx context.Context, p ListParams) ([]m
 		devices = []models.Device{}
 	}
 	return devices, nil
+}
+
+// BulkUpdateStatus sets the status column for multiple devices at once.
+func (r *DeviceRepository) BulkUpdateStatus(ctx context.Context, ids []uuid.UUID, status string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	query, args, err := sqlx.In("UPDATE devices SET status = ? WHERE id IN (?)", status, ids)
+	if err != nil {
+		return 0, fmt.Errorf("build bulk status query: %w", err)
+	}
+	query = r.db.Rebind(query)
+	res, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("bulk update status: %w", err)
+	}
+	return res.RowsAffected()
+}
+
+// BulkUpdateDepartment sets the department for multiple devices at once.
+func (r *DeviceRepository) BulkUpdateDepartment(ctx context.Context, ids []uuid.UUID, deptID *uuid.UUID) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	query, args, err := sqlx.In("UPDATE devices SET department_id = ? WHERE id IN (?)", deptID, ids)
+	if err != nil {
+		return 0, fmt.Errorf("build bulk dept query: %w", err)
+	}
+	query = r.db.Rebind(query)
+	res, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("bulk update department: %w", err)
+	}
+	return res.RowsAffected()
+}
+
+// BulkDelete deletes multiple devices by ID. Related data is cascaded.
+func (r *DeviceRepository) BulkDelete(ctx context.Context, ids []uuid.UUID) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	query, args, err := sqlx.In("DELETE FROM devices WHERE id IN (?)", ids)
+	if err != nil {
+		return 0, fmt.Errorf("build bulk delete query: %w", err)
+	}
+	query = r.db.Rebind(query)
+	res, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("bulk delete devices: %w", err)
+	}
+	return res.RowsAffected()
 }
 
 // GetBySerialNumber retrieves a device by its serial number.

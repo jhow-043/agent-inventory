@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -40,29 +41,29 @@ func (r *AuditLogRepository) List(ctx context.Context, filters map[string]interf
 
 	// Apply filters
 	if userID, ok := filters["user_id"].(uuid.UUID); ok {
-		query += " AND user_id = $" + string(rune(argIndex+'0'))
-		countQuery += " AND user_id = $" + string(rune(argIndex+'0'))
+		query += fmt.Sprintf(" AND user_id = $%d", argIndex)
+		countQuery += fmt.Sprintf(" AND user_id = $%d", argIndex)
 		args = append(args, userID)
 		argIndex++
 	}
 
 	if action, ok := filters["action"].(string); ok {
-		query += " AND action = $" + string(rune(argIndex+'0'))
-		countQuery += " AND action = $" + string(rune(argIndex+'0'))
+		query += fmt.Sprintf(" AND action = $%d", argIndex)
+		countQuery += fmt.Sprintf(" AND action = $%d", argIndex)
 		args = append(args, action)
 		argIndex++
 	}
 
 	if resourceType, ok := filters["resource_type"].(string); ok {
-		query += " AND resource_type = $" + string(rune(argIndex+'0'))
-		countQuery += " AND resource_type = $" + string(rune(argIndex+'0'))
+		query += fmt.Sprintf(" AND resource_type = $%d", argIndex)
+		countQuery += fmt.Sprintf(" AND resource_type = $%d", argIndex)
 		args = append(args, resourceType)
 		argIndex++
 	}
 
 	if resourceID, ok := filters["resource_id"].(uuid.UUID); ok {
-		query += " AND resource_id = $" + string(rune(argIndex+'0'))
-		countQuery += " AND resource_id = $" + string(rune(argIndex+'0'))
+		query += fmt.Sprintf(" AND resource_id = $%d", argIndex)
+		countQuery += fmt.Sprintf(" AND resource_id = $%d", argIndex)
 		args = append(args, resourceID)
 		argIndex++
 	}
@@ -77,7 +78,7 @@ func (r *AuditLogRepository) List(ctx context.Context, filters map[string]interf
 	query += " ORDER BY created_at DESC"
 
 	// Apply pagination
-	query += " LIMIT $" + string(rune(argIndex+'0')) + " OFFSET $" + string(rune(argIndex+'1'))
+	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIndex, argIndex+1)
 	args = append(args, limit, offset)
 
 	var logs []models.AuditLog

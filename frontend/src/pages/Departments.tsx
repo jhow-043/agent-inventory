@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from '../api/departments';
-import { PageHeader, Button, Input, Modal } from '../components/ui';
+import { getDevices } from '../api/devices';
+import { PageHeader, Button, Input, Modal, Badge } from '../components/ui';
 
 export default function Departments() {
   const queryClient = useQueryClient();
@@ -16,6 +18,13 @@ export default function Departments() {
     queryKey: ['departments'],
     queryFn: getDepartments,
   });
+
+  // Fetch all devices to count per department
+  const { data: devicesData } = useQuery({
+    queryKey: ['devices', '', '', '', '', 'hostname', 'asc', 1],
+    queryFn: () => getDevices({ page: 1, limit: 10000 }),
+  });
+  const allDevices = devicesData?.devices ?? [];
 
   const createMut = useMutation({
     mutationFn: (name: string) => createDepartment(name),
@@ -102,6 +111,7 @@ export default function Departments() {
             <thead className="bg-bg-tertiary/50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Devices</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Created</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-text-muted uppercase tracking-wider">Actions</th>
               </tr>
@@ -119,8 +129,17 @@ export default function Departments() {
                         autoFocus
                       />
                     ) : (
-                      <span className="font-medium">{d.name}</span>
+                      <Link to={`/departments/${d.id}`} className="font-medium text-accent hover:text-accent-hover transition-colors">
+                        {d.name}
+                      </Link>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <Link to={`/departments/${d.id}`}>
+                      <Badge variant={allDevices.filter((dev) => dev.department_id === d.id).length > 0 ? 'accent' : 'neutral'}>
+                        {allDevices.filter((dev) => dev.department_id === d.id).length}
+                      </Badge>
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-sm text-text-muted">
                     {new Date(d.created_at).toLocaleDateString()}

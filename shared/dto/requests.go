@@ -94,6 +94,13 @@ type CreateUserRequest struct {
 	Role     string `json:"role" binding:"omitempty,oneof=admin viewer"`
 }
 
+// UpdateUserRequest is used to update a dashboard user's info.
+type UpdateUserRequest struct {
+	Username string `json:"username" binding:"omitempty,min=3,max=100"`
+	Password string `json:"password" binding:"omitempty,min=8,max=100"`
+	Role     string `json:"role" binding:"omitempty,oneof=admin viewer"`
+}
+
 // UpdateDeviceStatusRequest is used to change a device's lifecycle status.
 type UpdateDeviceStatusRequest struct {
 	Status string `json:"status" binding:"required,oneof=active inactive"`
@@ -102,6 +109,29 @@ type UpdateDeviceStatusRequest struct {
 // UpdateDeviceDepartmentRequest is used to assign a device to a department.
 type UpdateDeviceDepartmentRequest struct {
 	DepartmentID *uuid.UUID `json:"department_id"`
+}
+
+// BulkDeviceStatusRequest is used to change the status of multiple devices at once.
+type BulkDeviceStatusRequest struct {
+	DeviceIDs []uuid.UUID `json:"device_ids" binding:"required,min=1"`
+	Status    string      `json:"status" binding:"required,oneof=active inactive"`
+}
+
+// BulkDeviceDepartmentRequest is used to assign multiple devices to a department.
+type BulkDeviceDepartmentRequest struct {
+	DeviceIDs    []uuid.UUID `json:"device_ids" binding:"required,min=1"`
+	DepartmentID *uuid.UUID  `json:"department_id"`
+}
+
+// BulkDeviceDeleteRequest is used to delete multiple devices at once.
+type BulkDeviceDeleteRequest struct {
+	DeviceIDs []uuid.UUID `json:"device_ids" binding:"required,min=1"`
+}
+
+// BulkActionResponse returns the count of affected devices.
+type BulkActionResponse struct {
+	Affected int    `json:"affected"`
+	Message  string `json:"message"`
 }
 
 // CreateDepartmentRequest is used to create a new department.

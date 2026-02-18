@@ -75,10 +75,15 @@ export default function Layout() {
     navigate('/login');
   };
 
+  const { role } = useAuth();
+
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
   };
+
+  // Hide Settings from viewers
+  const filteredNavItems = role === 'admin' ? navItems : navItems.filter((item) => item.to !== '/settings');
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -91,10 +96,8 @@ export default function Layout() {
         {/* Logo + Collapse toggle */}
         <div className="h-14 flex items-center border-b border-border-primary relative">
           <div className={`flex items-center overflow-hidden ${collapsed ? 'justify-center w-full' : 'px-5'}`}>
-            <div className="w-8 h-8 flex-shrink-0 bg-gradient-to-br from-accent to-accent-light rounded-lg flex items-center justify-center shadow-md shadow-accent/20">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
-              </svg>
+            <div className="w-8 h-8 flex-shrink-0 rounded-lg overflow-hidden shadow-md shadow-accent/20 bg-bg-tertiary">
+              <img src="/favicon.ico" alt="Inventory" className="w-full h-full object-contain" />
             </div>
             {!collapsed && <span className="text-base font-bold text-text-primary ml-2.5 whitespace-nowrap tracking-tight">Inventory</span>}
           </div>
@@ -112,7 +115,7 @@ export default function Layout() {
 
         {/* Navigation */}
         <nav className={`flex-1 py-4 space-y-1 overflow-y-auto ${collapsed ? 'px-2' : 'px-3'}`}>
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <Link
               key={item.to}
               to={item.to}

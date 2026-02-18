@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import DeviceList from './pages/DeviceList'
 import DeviceDetail from './pages/DeviceDetail'
 import Departments from './pages/Departments'
+import DepartmentDetail from './pages/DepartmentDetail'
 import Settings from './pages/Settings'
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
           <Route path="/devices" element={<DeviceList />} />
           <Route path="/devices/:id" element={<DeviceDetail />} />
           <Route path="/departments" element={<Departments />} />
+          <Route path="/departments/:id" element={<DepartmentDetail />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
