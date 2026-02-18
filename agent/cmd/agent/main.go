@@ -27,7 +27,7 @@ const (
 	serviceName    = "InventoryAgent"
 	serviceDisplay = "Inventory Agent"
 	serviceDesc    = "Windows IT Asset Inventory Agent"
-	version        = "0.1.0"
+	version        = "1.0.0"
 )
 
 func main() {

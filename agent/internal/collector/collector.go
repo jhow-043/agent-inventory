@@ -9,7 +9,7 @@ import (
 )
 
 // AgentVersion is the current version of the inventory agent.
-const AgentVersion = "0.1.0"
+const AgentVersion = "1.0.0"
 
 // Collector orchestrates all inventory data collection.
 type Collector struct {

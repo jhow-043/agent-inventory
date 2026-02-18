@@ -6,9 +6,11 @@ import { Link } from 'react-router-dom';
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from '../api/departments';
 import { getDevices } from '../api/devices';
 import { PageHeader, Button, Input, Modal, Badge } from '../components/ui';
+import { useToast } from '../hooks/useToast';
 
 export default function Departments() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -31,7 +33,9 @@ export default function Departments() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
       setNewName('');
+      toast.success('Departamento criado');
     },
+    onError: () => toast.error('Falha ao criar departamento'),
   });
 
   const updateMut = useMutation({
@@ -39,7 +43,9 @@ export default function Departments() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
       setEditingId(null);
+      toast.success('Departamento atualizado');
     },
+    onError: () => toast.error('Falha ao atualizar departamento'),
   });
 
   const deleteMut = useMutation({
@@ -47,7 +53,9 @@ export default function Departments() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
       setDeleteTarget(null);
+      toast.success('Departamento excluído');
     },
+    onError: () => toast.error('Falha ao excluir departamento'),
   });
 
   const departments = data?.departments ?? [];

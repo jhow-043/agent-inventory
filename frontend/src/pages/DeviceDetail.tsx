@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getDevice, updateDeviceStatus, updateDeviceDepartment, deleteDevice } from '../api/devices';
 import { getDepartments } from '../api/departments';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import { Button, Badge, Select, Card, CardHeader, CardContent, Modal } from '../components/ui';
 import type { RemoteTool, Hardware } from '../types';
 
@@ -17,12 +18,49 @@ function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+type Tab = 'overview' | 'storage' | 'network' | 'software' | 'remote' | 'history';
+
+const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
+  {
+    key: 'overview',
+    label: 'Visão Geral',
+    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>,
+  },
+  {
+    key: 'storage',
+    label: 'Armazenamento',
+    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>,
+  },
+  {
+    key: 'network',
+    label: 'Rede',
+    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>,
+  },
+  {
+    key: 'software',
+    label: 'Software',
+    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0l4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0l-5.571 3-5.571-3" /></svg>,
+  },
+  {
+    key: 'remote',
+    label: 'Acesso Remoto',
+    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.07-9.07l-1.757 1.757a4.5 4.5 0 010 6.364L8.93 15.84a4.5 4.5 0 01-1.242-7.244l4.5-4.5a4.5 4.5 0 016.364 0z" /></svg>,
+  },
+  {
+    key: 'history',
+    label: 'Histórico',
+    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+  },
+];
+
 export default function DeviceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { role } = useAuth();
+  const toast = useToast();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
   const { data, isLoading, error } = useQuery({
     queryKey: ['device', id],
     queryFn: () => getDevice(id!),
@@ -36,11 +74,13 @@ export default function DeviceDetail() {
 
   const statusMutation = useMutation({
     mutationFn: (newStatus: 'active' | 'inactive') => updateDeviceStatus(id!, newStatus),
-    onSuccess: () => {
+    onSuccess: (_data, newStatus) => {
       queryClient.invalidateQueries({ queryKey: ['device', id] });
       queryClient.invalidateQueries({ queryKey: ['devices'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      toast.success(newStatus === 'active' ? 'Dispositivo ativado' : 'Dispositivo desativado');
     },
+    onError: () => toast.error('Falha ao atualizar status'),
   });
 
   const departmentMutation = useMutation({
@@ -48,7 +88,9 @@ export default function DeviceDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['device', id] });
       queryClient.invalidateQueries({ queryKey: ['devices'] });
+      toast.success('Departamento atualizado');
     },
+    onError: () => toast.error('Falha ao atualizar departamento'),
   });
 
   const deleteMutation = useMutation({
@@ -56,8 +98,10 @@ export default function DeviceDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['devices'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      toast.success('Dispositivo excluído');
       navigate('/devices');
     },
+    onError: () => toast.error('Falha ao excluir dispositivo'),
   });
 
   if (isLoading) return (
@@ -170,225 +214,287 @@ export default function DeviceDetail() {
         </p>
       </Modal>
 
-      {/* Remote Access Tools */}
-      <Section title="Remote Access">
-        {remote_tools && remote_tools.length > 0 ? (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-text-muted uppercase">
-                <th className="pb-2 pr-4 font-medium w-8"></th>
-                <th className="pb-2 pr-4 font-medium">Tool</th>
-                <th className="pb-2 pr-4 font-medium">Version</th>
-                <th className="pb-2 pr-4 font-medium">ID</th>
-                <th className="pb-2 font-medium w-10"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-primary">
-              {remote_tools.map((tool) => (
-                <RemoteToolRow key={tool.id} tool={tool} />
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="text-sm text-text-muted">No remote access tools detected.</p>
-        )}
-      </Section>
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border-primary mb-6 overflow-x-auto">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === tab.key
+                ? 'border-accent text-accent'
+                : 'border-transparent text-text-muted hover:text-text-primary hover:border-border-secondary'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      {/* System Info */}
-      <Section title="System">
-        <Grid>
-          <Field label="Hostname" value={device.hostname} />
-          <Field label="Serial Number" value={device.serial_number} />
-          <Field label="OS" value={`${device.os_name} ${device.os_version}`} />
-          <Field label="Build" value={device.os_build} />
-          <Field label="Architecture" value={device.os_arch} />
-          <Field
-            label="Last Boot"
-            value={device.last_boot_time ? new Date(device.last_boot_time).toLocaleString() : '—'}
-          />
-          <Field label="Logged-in User" value={device.logged_in_user} />
-          <Field label="Agent Version" value={device.agent_version} />
-          <Field label="License Status" value={device.license_status} />
-          <Field label="Last Seen" value={new Date(device.last_seen).toLocaleString()} />
-        </Grid>
-      </Section>
-
-      {/* Hardware */}
-      {hardware && (
-        <Section title="Hardware">
-          <Grid>
-            <Field label="CPU" value={hardware.cpu_model} />
-            <Field label="Cores / Threads" value={`${hardware.cpu_cores} / ${hardware.cpu_threads}`} />
-            <Field label="RAM" value={formatBytes(hardware.ram_total_bytes)} />
-            <Field
-              label="Motherboard"
-              value={`${hardware.motherboard_manufacturer} ${hardware.motherboard_product}`.trim()}
-            />
-            <Field label="Motherboard Serial" value={hardware.motherboard_serial} />
-            <Field label="BIOS" value={`${hardware.bios_vendor} ${hardware.bios_version}`.trim()} />
-          </Grid>
-        </Section>
-      )}
-
-      {/* Disks */}
-      {disks.length > 0 && (() => {
-        const physicalDisks = disks.filter((d) => d.media_type !== 'Partition');
-        const partitions = disks.filter((d) => d.media_type === 'Partition');
-        return (
+      {/* Tab Content */}
+      <div className="animate-fade-in">
+        {activeTab === 'overview' && (
           <>
-            {physicalDisks.length > 0 && (
-              <Section title="Physical Disks">
+            {/* Remote Access Tools */}
+            <Section title="Acesso Remoto">
+              {remote_tools && remote_tools.length > 0 ? (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-text-muted uppercase">
+                      <th className="pb-2 pr-4 font-medium w-8"></th>
+                      <th className="pb-2 pr-4 font-medium">Ferramenta</th>
+                      <th className="pb-2 pr-4 font-medium">Versão</th>
+                      <th className="pb-2 pr-4 font-medium">ID</th>
+                      <th className="pb-2 font-medium w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-primary">
+                    {remote_tools.map((tool) => (
+                      <RemoteToolRow key={tool.id} tool={tool} />
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-sm text-text-muted">Nenhuma ferramenta de acesso remoto detectada.</p>
+              )}
+            </Section>
+
+            {/* System Info */}
+            <Section title="Sistema">
+              <Grid>
+                <Field label="Hostname" value={device.hostname} />
+                <Field label="Número de Série" value={device.serial_number} />
+                <Field label="SO" value={`${device.os_name} ${device.os_version}`} />
+                <Field label="Build" value={device.os_build} />
+                <Field label="Arquitetura" value={device.os_arch} />
+                <Field label="Último Boot" value={device.last_boot_time ? new Date(device.last_boot_time).toLocaleString('pt-BR') : '—'} />
+                <Field label="Usuário Logado" value={device.logged_in_user} />
+                <Field label="Versão do Agente" value={device.agent_version} />
+                <Field label="Licença" value={device.license_status} />
+                <Field label="Última Atividade" value={new Date(device.last_seen).toLocaleString('pt-BR')} />
+              </Grid>
+            </Section>
+
+            {/* Hardware */}
+            {hardware && (
+              <Section title="Hardware">
+                <Grid>
+                  <Field label="CPU" value={hardware.cpu_model} />
+                  <Field label="Cores / Threads" value={`${hardware.cpu_cores} / ${hardware.cpu_threads}`} />
+                  <Field label="RAM" value={formatBytes(hardware.ram_total_bytes)} />
+                  <Field label="Placa-mãe" value={`${hardware.motherboard_manufacturer} ${hardware.motherboard_product}`.trim()} />
+                  <Field label="Serial da Placa-mãe" value={hardware.motherboard_serial} />
+                  <Field label="BIOS" value={`${hardware.bios_vendor} ${hardware.bios_version}`.trim()} />
+                </Grid>
+              </Section>
+            )}
+          </>
+        )}
+
+        {activeTab === 'storage' && (
+          <>
+            {disks.length > 0 ? (() => {
+              const physicalDisks = disks.filter((d) => d.media_type !== 'Partition');
+              const partitions = disks.filter((d) => d.media_type === 'Partition');
+              return (
+                <>
+                  {physicalDisks.length > 0 && (
+                    <Section title="Discos Físicos">
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-border-primary text-sm">
+                          <thead className="bg-bg-tertiary">
+                            <tr>
+                              <Th>Modelo</Th>
+                              <Th>Tamanho</Th>
+                              <Th>Tipo</Th>
+                              <Th>Interface</Th>
+                              <Th>Serial</Th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border-primary">
+                            {physicalDisks.map((d) => (
+                              <tr key={d.id}>
+                                <Td>{d.model}</Td>
+                                <Td>{formatBytes(d.size_bytes)}</Td>
+                                <Td>{d.media_type}</Td>
+                                <Td>{d.interface_type}</Td>
+                                <Td>{d.serial_number}</Td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Section>
+                  )}
+
+                  {partitions.length > 0 && (
+                    <Section title="Partições">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {partitions.map((p) => {
+                          const total = p.partition_size_bytes || 0;
+                          const free = p.free_space_bytes || 0;
+                          const used = total - free;
+                          const pct = total > 0 ? Math.round((used / total) * 100) : 0;
+                          const barColor = pct >= 90 ? 'bg-danger' : pct >= 70 ? 'bg-warning' : 'bg-accent';
+                          return (
+                            <div key={p.id} className="bg-bg-tertiary rounded-lg border border-border-primary p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-semibold text-text-primary">{p.drive_letter || '—'}</span>
+                                <span className="text-xs text-text-muted">{pct}% usado</span>
+                              </div>
+                              <div className="w-full h-2 bg-bg-primary rounded-full overflow-hidden mb-2">
+                                <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                              </div>
+                              <div className="flex justify-between text-xs text-text-muted">
+                                <span>{formatBytes(used)} usado</span>
+                                <span>{formatBytes(free)} livre</span>
+                              </div>
+                              <div className="text-xs text-text-muted mt-1">Total: {formatBytes(total)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Section>
+                  )}
+                </>
+              );
+            })() : (
+              <EmptyState message="Nenhum disco encontrado." />
+            )}
+          </>
+        )}
+
+        {activeTab === 'network' && (
+          <>
+            {network_interfaces.length > 0 ? (
+              <Section title="Interfaces de Rede">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-border-primary text-sm">
                     <thead className="bg-bg-tertiary">
                       <tr>
-                        <Th>Model</Th>
-                        <Th>Size</Th>
-                        <Th>Type</Th>
-                        <Th>Interface</Th>
-                        <Th>Serial</Th>
+                        <Th>Nome</Th>
+                        <Th>MAC</Th>
+                        <Th>IPv4</Th>
+                        <Th>IPv6</Th>
+                        <Th>Velocidade</Th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-primary">
-                      {physicalDisks.map((d) => (
-                        <tr key={d.id}>
-                          <Td>{d.model}</Td>
-                          <Td>{formatBytes(d.size_bytes)}</Td>
-                          <Td>{d.media_type}</Td>
-                          <Td>{d.interface_type}</Td>
-                          <Td>{d.serial_number}</Td>
+                      {network_interfaces.map((n) => (
+                        <tr key={n.id}>
+                          <Td>{n.name}</Td>
+                          <Td>{n.mac_address}</Td>
+                          <Td>{n.ipv4_address || '—'}</Td>
+                          <Td>{n.ipv6_address || '—'}</Td>
+                          <Td>{n.speed_mbps ? `${n.speed_mbps} Mbps` : '—'}</Td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </Section>
+            ) : (
+              <EmptyState message="Nenhuma interface de rede encontrada." />
             )}
+          </>
+        )}
 
-            {partitions.length > 0 && (
-              <Section title="Partitions">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {partitions.map((p) => {
-                    const total = p.partition_size_bytes || 0;
-                    const free = p.free_space_bytes || 0;
-                    const used = total - free;
-                    const pct = total > 0 ? Math.round((used / total) * 100) : 0;
-                    const barColor = pct >= 90 ? 'bg-danger' : pct >= 70 ? 'bg-warning' : 'bg-accent';
+        {activeTab === 'software' && (
+          <>
+            {installed_software.length > 0 ? (
+              <Section title={`Software Instalado (${installed_software.length})`}>
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <table className="min-w-full divide-y divide-border-primary text-sm">
+                    <thead className="bg-bg-tertiary sticky top-0">
+                      <tr>
+                        <Th>Nome</Th>
+                        <Th>Versão</Th>
+                        <Th>Fabricante</Th>
+                        <Th>Data de Instalação</Th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-primary">
+                      {installed_software.map((s) => (
+                        <tr key={s.id}>
+                          <Td>{s.name}</Td>
+                          <Td>{s.version || '—'}</Td>
+                          <Td>{s.vendor || '—'}</Td>
+                          <Td>{s.install_date || '—'}</Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Section>
+            ) : (
+              <EmptyState message="Nenhum software instalado encontrado." />
+            )}
+          </>
+        )}
+
+        {activeTab === 'remote' && (
+          <>
+            {remote_tools && remote_tools.length > 0 ? (
+              <Section title="Ferramentas de Acesso Remoto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-text-muted uppercase">
+                      <th className="pb-2 pr-4 font-medium w-8"></th>
+                      <th className="pb-2 pr-4 font-medium">Ferramenta</th>
+                      <th className="pb-2 pr-4 font-medium">Versão</th>
+                      <th className="pb-2 pr-4 font-medium">ID</th>
+                      <th className="pb-2 font-medium w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-primary">
+                    {remote_tools.map((tool) => (
+                      <RemoteToolRow key={tool.id} tool={tool} />
+                    ))}
+                  </tbody>
+                </table>
+              </Section>
+            ) : (
+              <EmptyState message="Nenhuma ferramenta de acesso remoto detectada." />
+            )}
+          </>
+        )}
+
+        {activeTab === 'history' && (
+          <>
+            {hardware_history && hardware_history.length > 0 ? (
+              <Section title="Alterações de Hardware">
+                <div className="space-y-3">
+                  {hardware_history.map((h) => {
+                    let snapshot: Partial<Hardware> = {};
+                    try { snapshot = JSON.parse(h.snapshot); } catch { /* ignore */ }
                     return (
-                      <div key={p.id} className="bg-bg-tertiary rounded-lg border border-border-primary p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-semibold text-text-primary">
-                            {p.drive_letter || '—'}
-                          </span>
-                          <span className="text-xs text-text-muted">{pct}% used</span>
-                        </div>
-                        <div className="w-full h-2 bg-bg-primary rounded-full overflow-hidden mb-2">
-                          <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
-                        </div>
-                        <div className="flex justify-between text-xs text-text-muted">
-                          <span>{formatBytes(used)} used</span>
-                          <span>{formatBytes(free)} free</span>
-                        </div>
-                        <div className="text-xs text-text-muted mt-1">
-                          Total: {formatBytes(total)}
-                        </div>
+                      <div key={h.id} className="bg-bg-tertiary rounded-lg border border-border-primary p-4">
+                        <p className="text-xs text-text-muted mb-2">
+                          Alterado em: {new Date(h.changed_at).toLocaleString('pt-BR')}
+                        </p>
+                        <Grid>
+                          {snapshot.cpu_model && <Field label="CPU" value={snapshot.cpu_model} />}
+                          {snapshot.cpu_cores != null && snapshot.cpu_threads != null && (
+                            <Field label="Cores / Threads" value={`${snapshot.cpu_cores} / ${snapshot.cpu_threads}`} />
+                          )}
+                          {snapshot.ram_total_bytes != null && <Field label="RAM" value={formatBytes(snapshot.ram_total_bytes)} />}
+                          {(snapshot.motherboard_manufacturer || snapshot.motherboard_product) && (
+                            <Field label="Placa-mãe" value={`${snapshot.motherboard_manufacturer ?? ''} ${snapshot.motherboard_product ?? ''}`.trim()} />
+                          )}
+                          {snapshot.bios_vendor && <Field label="BIOS" value={`${snapshot.bios_vendor} ${snapshot.bios_version ?? ''}`.trim()} />}
+                        </Grid>
                       </div>
                     );
                   })}
                 </div>
               </Section>
+            ) : (
+              <EmptyState message="Nenhuma alteração de hardware registrada." />
             )}
           </>
-        );
-      })()}
-
-      {/* Network */}
-      {network_interfaces.length > 0 && (
-        <Section title="Network Interfaces">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border-primary text-sm">
-              <thead className="bg-bg-tertiary">
-                <tr>
-                  <Th>Name</Th>
-                  <Th>MAC</Th>
-                  <Th>IPv4</Th>
-                  <Th>IPv6</Th>
-                  <Th>Speed</Th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-primary">
-                {network_interfaces.map((n) => (
-                  <tr key={n.id}>
-                    <Td>{n.name}</Td>
-                    <Td>{n.mac_address}</Td>
-                    <Td>{n.ipv4_address || '—'}</Td>
-                    <Td>{n.ipv6_address || '—'}</Td>
-                    <Td>{n.speed_mbps ? `${n.speed_mbps} Mbps` : '—'}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Section>
-      )}
-
-      {/* Software */}
-      {installed_software.length > 0 && (
-        <Section title={`Installed Software (${installed_software.length})`}>
-          <div className="overflow-x-auto max-h-96 overflow-y-auto">
-            <table className="min-w-full divide-y divide-border-primary text-sm">
-              <thead className="bg-bg-tertiary sticky top-0">
-                <tr>
-                  <Th>Name</Th>
-                  <Th>Version</Th>
-                  <Th>Vendor</Th>
-                  <Th>Install Date</Th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-primary">
-                {installed_software.map((s) => (
-                  <tr key={s.id}>
-                    <Td>{s.name}</Td>
-                    <Td>{s.version || '—'}</Td>
-                    <Td>{s.vendor || '—'}</Td>
-                    <Td>{s.install_date || '—'}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Section>
-      )}
-
-      {/* Hardware History */}
-      {hardware_history && hardware_history.length > 0 && (
-        <Section title="Hardware Changes">
-          <div className="space-y-3">
-            {hardware_history.map((h) => {
-              let snapshot: Partial<Hardware> = {};
-              try { snapshot = JSON.parse(h.snapshot); } catch { /* ignore */ }
-              return (
-                <div key={h.id} className="bg-bg-tertiary rounded-lg border border-border-primary p-4">
-                  <p className="text-xs text-text-muted mb-2">
-                    Changed at: {new Date(h.changed_at).toLocaleString()}
-                  </p>
-                  <Grid>
-                    {snapshot.cpu_model && <Field label="CPU" value={snapshot.cpu_model} />}
-                    {snapshot.cpu_cores != null && snapshot.cpu_threads != null && (
-                      <Field label="Cores / Threads" value={`${snapshot.cpu_cores} / ${snapshot.cpu_threads}`} />
-                    )}
-                    {snapshot.ram_total_bytes != null && <Field label="RAM" value={formatBytes(snapshot.ram_total_bytes)} />}
-                    {(snapshot.motherboard_manufacturer || snapshot.motherboard_product) && (
-                      <Field label="Motherboard" value={`${snapshot.motherboard_manufacturer ?? ''} ${snapshot.motherboard_product ?? ''}`.trim()} />
-                    )}
-                    {snapshot.bios_vendor && <Field label="BIOS" value={`${snapshot.bios_vendor} ${snapshot.bios_version ?? ''}`.trim()} />}
-                  </Grid>
-                </div>
-              );
-            })}
-          </div>
-        </Section>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -489,4 +595,15 @@ function Th({ children }: { children: React.ReactNode }) {
 
 function Td({ children }: { children: React.ReactNode }) {
   return <td className="px-4 py-2 text-text-secondary">{children}</td>;
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="text-center py-12">
+      <svg className="w-10 h-10 text-text-muted mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m6 4.125l2.25 2.25m0 0l2.25 2.25M12 13.875l2.25-2.25M12 13.875l-2.25 2.25M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+      </svg>
+      <p className="text-sm text-text-muted">{message}</p>
+    </div>
+  );
 }

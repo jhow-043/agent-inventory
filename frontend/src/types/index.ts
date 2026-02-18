@@ -100,6 +100,22 @@ export interface DashboardStats {
   online: number;
   offline: number;
   inactive: number;
+  os_distribution: ChartItem[];
+  recent_devices: RecentDevice[];
+  top_software: ChartItem[];
+}
+
+export interface ChartItem {
+  name: string;
+  count: number;
+}
+
+export interface RecentDevice {
+  id: string;
+  hostname: string;
+  os_name: string;
+  status: string;
+  last_seen: string;
 }
 
 export interface DeviceDetailResponse {

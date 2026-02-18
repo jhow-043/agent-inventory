@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './hooks/useAuth'
 import { ThemeProvider } from './hooks/useTheme'
 import { SidebarProvider } from './hooks/useSidebar'
+import { ToastProvider } from './hooks/useToast'
 import './index.css'
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -24,9 +25,11 @@ createRoot(document.getElementById('root')!).render(
       <ThemeProvider>
         <AuthProvider>
           <SidebarProvider>
-            <ErrorBoundary>
-              <App />
-            </ErrorBoundary>
+            <ToastProvider>
+              <ErrorBoundary>
+                <App />
+              </ErrorBoundary>
+            </ToastProvider>
           </SidebarProvider>
         </AuthProvider>
       </ThemeProvider>

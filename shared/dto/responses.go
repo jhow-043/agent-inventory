@@ -36,10 +36,28 @@ type ReadyResponse struct {
 
 // DashboardStatsResponse is returned by GET /api/v1/dashboard/stats.
 type DashboardStatsResponse struct {
-	Total    int `json:"total"`
-	Online   int `json:"online"`
-	Offline  int `json:"offline"`
-	Inactive int `json:"inactive"`
+	Total          int            `json:"total"`
+	Online         int            `json:"online"`
+	Offline        int            `json:"offline"`
+	Inactive       int            `json:"inactive"`
+	OSDistribution []ChartItem    `json:"os_distribution"`
+	RecentDevices  []RecentDevice `json:"recent_devices"`
+	TopSoftware    []ChartItem    `json:"top_software"`
+}
+
+// ChartItem is a generic name/value pair for charts.
+type ChartItem struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+// RecentDevice is a minimal device representation for the dashboard.
+type RecentDevice struct {
+	ID       uuid.UUID `json:"id"`
+	Hostname string    `json:"hostname"`
+	OSName   string    `json:"os_name"`
+	Status   string    `json:"status"`
+	LastSeen string    `json:"last_seen"`
 }
 
 // UserResponse is a single user returned by the API (no password hash).

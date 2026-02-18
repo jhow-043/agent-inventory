@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getUsers, createUser, updateUser, deleteUser } from '../api/users';
 import type { User } from '../types';
 import { PageHeader, Button, Input, Card, CardContent, Modal } from '../components/ui';
+import { useToast } from '../hooks/useToast';
 
 export default function Settings() {
   return (
@@ -23,6 +24,7 @@ export default function Settings() {
 function UserManagementSection() {
   const queryClient = useQueryClient();
   const { username: currentUsername } = useAuth();
+  const toast = useToast();
   const { data, isLoading } = useQuery({ queryKey: ['users'], queryFn: getUsers });
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -42,8 +44,9 @@ function UserManagementSection() {
       setPassword('');
       setRole('viewer');
       setError('');
+      toast.success('Usuário criado');
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => { setError(err.message); toast.error('Falha ao criar usuário'); },
   });
 
   const updateMutation = useMutation({
@@ -53,8 +56,9 @@ function UserManagementSection() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setEditTarget(null);
       setError('');
+      toast.success('Usuário atualizado');
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => { setError(err.message); toast.error('Falha ao atualizar usuário'); },
   });
 
   const deleteMutation = useMutation({
@@ -62,8 +66,9 @@ function UserManagementSection() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setDeleteTarget(null);
+      toast.success('Usuário excluído');
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => { setError(err.message); toast.error('Falha ao excluir usuário'); },
   });
 
   const handleCreate = (e: FormEvent) => {

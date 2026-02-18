@@ -9,6 +9,7 @@ import DeviceDetail from './pages/DeviceDetail'
 import Departments from './pages/Departments'
 import DepartmentDetail from './pages/DepartmentDetail'
 import Settings from './pages/Settings'
+import AuditLogs from './pages/AuditLogs'
 
 function App() {
   const { isAuthenticated } = useAuth()
@@ -33,6 +34,7 @@ function App() {
           <Route path="/departments" element={<Departments />} />
           <Route path="/departments/:id" element={<DepartmentDetail />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/audit-logs" element={<AuditLogs />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

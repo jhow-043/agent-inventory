@@ -12,7 +12,7 @@
 ; ============================================================================
 
 #define MyAppName      "Inventory Agent"
-#define MyAppVersion   "0.1.0"
+#define MyAppVersion   "1.0.0"
 #define MyAppPublisher  "IT Inventory"
 #define MyAppExeName   "inventory-agent.exe"
 

@@ -5,7 +5,10 @@ import { getStats } from '../api/dashboard';
 import { getDepartments } from '../api/departments';
 import { getDevices } from '../api/devices';
 import { Link } from 'react-router-dom';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import { PageHeader, Card, CardContent } from '../components/ui';
 
 const CHART_COLORS = {
@@ -15,6 +18,19 @@ const CHART_COLORS = {
   muted: '#64748b',
   info: '#06b6d4',
 };
+
+const OS_COLORS = ['#ea580c', '#06b6d4', '#8b5cf6', '#22c55e', '#f59e0b', '#ec4899', '#64748b', '#14b8a6', '#f97316', '#6366f1'];
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'agora';
+  if (mins < 60) return `${mins}m atrás`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h atrás`;
+  const days = Math.floor(hours / 24);
+  return `${days}d atrás`;
+}
 
 export default function Dashboard() {
   const { data, isLoading, error } = useQuery({
@@ -53,6 +69,9 @@ export default function Dashboard() {
   const online = data?.online ?? 0;
   const offline = data?.offline ?? 0;
   const inactive = data?.inactive ?? 0;
+  const osDist = data?.os_distribution ?? [];
+  const recentDevices = data?.recent_devices ?? [];
+  const topSoftware = data?.top_software ?? [];
 
   // Data for the status pie chart
   const pieData = [
@@ -145,13 +164,13 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Charts */}
+      {/* Charts Row 1 — Status + Department */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Status Distribution Pie */}
         {pieData.length > 0 && (
           <Card>
             <CardContent>
-              <h3 className="text-sm font-semibold text-text-primary mb-4">Status Distribution</h3>
+              <h3 className="text-sm font-semibold text-text-primary mb-4">Distribuição por Status</h3>
               <div className="flex items-center justify-center">
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
@@ -198,7 +217,7 @@ export default function Dashboard() {
         {deptCounts.length > 0 && (
           <Card>
             <CardContent>
-              <h3 className="text-sm font-semibold text-text-primary mb-4">Devices by Department</h3>
+              <h3 className="text-sm font-semibold text-text-primary mb-4">Dispositivos por Departamento</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={deptCounts} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
                   <XAxis
@@ -235,6 +254,144 @@ export default function Dashboard() {
           </Card>
         )}
       </div>
+
+      {/* Charts Row 2 — OS Distribution + Top Software */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* OS Distribution */}
+        {osDist.length > 0 && (
+          <Card>
+            <CardContent>
+              <h3 className="text-sm font-semibold text-text-primary mb-4">Distribuição por Sistema Operacional</h3>
+              <div className="flex items-center justify-center">
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={osDist.map((d) => ({ name: d.name, value: d.count }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={4}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {osDist.map((_, index) => (
+                        <Cell key={index} fill={OS_COLORS[index % OS_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'var(--color-bg-secondary)',
+                        borderColor: 'var(--color-border-primary)',
+                        borderRadius: '0.75rem',
+                        fontSize: '0.75rem',
+                        color: 'var(--color-text-primary)',
+                      }}
+                      itemStyle={{ color: 'var(--color-text-primary)' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2">
+                {osDist.map((d, i) => (
+                  <div key={d.name} className="flex items-center gap-2 text-xs text-text-secondary">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: OS_COLORS[i % OS_COLORS.length] }} />
+                    {d.name} ({d.count})
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Top Software */}
+        {topSoftware.length > 0 && (
+          <Card>
+            <CardContent>
+              <h3 className="text-sm font-semibold text-text-primary mb-4">Software Mais Instalado</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={topSoftware.map((s) => ({ name: s.name.length > 18 ? s.name.substring(0, 18) + '…' : s.name, count: s.count }))} layout="vertical" margin={{ top: 0, right: 10, bottom: 0, left: 5 }}>
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={120}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'var(--color-bg-secondary)',
+                      borderColor: 'var(--color-border-primary)',
+                      borderRadius: '0.75rem',
+                      fontSize: '0.75rem',
+                      color: 'var(--color-text-primary)',
+                    }}
+                    cursor={{ fill: 'var(--color-bg-tertiary)', opacity: 0.5 }}
+                  />
+                  <Bar
+                    dataKey="count"
+                    fill={CHART_COLORS.info}
+                    radius={[0, 6, 6, 0]}
+                    maxBarSize={24}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Recent Devices */}
+      {recentDevices.length > 0 && (
+        <Card className="mb-6">
+          <CardContent>
+            <h3 className="text-sm font-semibold text-text-primary mb-4">Atividade Recente</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border-primary text-left text-text-secondary">
+                    <th className="pb-2 font-medium">Hostname</th>
+                    <th className="pb-2 font-medium">Sistema</th>
+                    <th className="pb-2 font-medium">Status</th>
+                    <th className="pb-2 font-medium text-right">Última Atividade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentDevices.map((d) => (
+                    <tr key={d.id} className="border-b border-border-primary/50 last:border-0">
+                      <td className="py-2.5">
+                        <Link to={`/devices/${d.id}`} className="text-accent hover:text-accent-hover font-medium transition-colors">
+                          {d.hostname}
+                        </Link>
+                      </td>
+                      <td className="py-2.5 text-text-secondary">{d.os_name || '—'}</td>
+                      <td className="py-2.5">
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${
+                          d.status === 'active'
+                            ? 'bg-success/10 text-success'
+                            : 'bg-warning/10 text-warning'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${d.status === 'active' ? 'bg-success' : 'bg-warning'}`} />
+                          {d.status === 'active' ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-text-muted text-right">{timeAgo(d.last_seen)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {total > 0 && (
         <Link

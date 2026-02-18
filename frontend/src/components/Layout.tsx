@@ -4,6 +4,7 @@ import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useSidebar } from '../hooks/useSidebar';
 import { useTheme } from '../hooks/useTheme';
+import GlobalSearch from './GlobalSearch';
 
 const navItems = [
   {
@@ -30,6 +31,15 @@ const navItems = [
     icon: (
       <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+      </svg>
+    ),
+  },
+  {
+    to: '/audit-logs',
+    label: 'Audit Logs',
+    icon: (
+      <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
   },
@@ -83,7 +93,7 @@ export default function Layout() {
   };
 
   // Hide Settings from viewers
-  const filteredNavItems = role === 'admin' ? navItems : navItems.filter((item) => item.to !== '/settings');
+  const filteredNavItems = role === 'admin' ? navItems : navItems.filter((item) => !['/settings', '/audit-logs'].includes(item.to));
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -180,9 +190,15 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-        <Outlet />
-      </main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top bar with search */}
+        <header className="h-14 flex items-center gap-4 px-6 lg:px-8 border-b border-border-primary bg-bg-secondary/50 backdrop-blur-sm flex-shrink-0">
+          <GlobalSearch />
+        </header>
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

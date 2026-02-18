@@ -7,6 +7,7 @@ import { getDevices, exportDevicesCSV, bulkUpdateStatus, bulkUpdateDepartment, b
 import { getDepartments } from '../api/departments';
 import { useDebounce } from '../hooks/useDebounce';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import { PageHeader, Button, Badge, Input, Select, Modal } from '../components/ui';
 
 type SortCol = 'hostname' | 'os' | 'last_seen' | 'status';
@@ -14,6 +15,7 @@ type SortOrder = 'asc' | 'desc';
 
 export default function DeviceList() {
   const { role } = useAuth();
+  const toast = useToast();
   const queryClient = useQueryClient();
   const [hostname, setHostname] = useState('');
   const [os, setOs] = useState('');
@@ -67,17 +69,20 @@ export default function DeviceList() {
 
   const bulkStatusMutation = useMutation({
     mutationFn: (status: 'active' | 'inactive') => bulkUpdateStatus([...selectedIds], status),
-    onSuccess: invalidateAll,
+    onSuccess: (data) => { invalidateAll(); toast.success(data.message || `${data.affected} dispositivos atualizados`); },
+    onError: () => toast.error('Falha ao atualizar status dos dispositivos'),
   });
 
   const bulkDeptMutation = useMutation({
     mutationFn: (deptId: string | null) => bulkUpdateDepartment([...selectedIds], deptId),
-    onSuccess: invalidateAll,
+    onSuccess: (data) => { invalidateAll(); toast.success(data.message || `${data.affected} dispositivos atualizados`); },
+    onError: () => toast.error('Falha ao atualizar departamento'),
   });
 
   const bulkDeleteMutation = useMutation({
     mutationFn: () => bulkDeleteDevices([...selectedIds]),
-    onSuccess: invalidateAll,
+    onSuccess: (data) => { invalidateAll(); toast.success(data.message || `${data.affected} dispositivos excluídos`); },
+    onError: () => toast.error('Falha ao excluir dispositivos'),
   });
 
   // Selection helpers
