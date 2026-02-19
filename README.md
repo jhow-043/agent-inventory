@@ -442,4 +442,4 @@ A documentação ITIL v4 completa está em `docs/`:
 
 ## Licença
 
-Uso interno.
+Este projeto é licenciado sob a [MIT License](LICENSE).
