@@ -5,6 +5,18 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.1.0] - 2026-02-19
+
+### Adicionado
+- **Histórico detalhado de hardware** — detecção automática de alterações em CPU, RAM, placa-mãe, BIOS, discos e interfaces de rede
+- Cada alteração registra componente, campo, valor anterior e valor novo (ex: "RAM Total: 16 GB → 8 GB")
+- Detecção de discos adicionados, removidos ou com tamanho/tipo alterado
+- Detecção de interfaces de rede adicionadas ou removidas (por MAC address)
+- Timeline visual no frontend com badges coloridos por componente (CPU, RAM, Disco, etc.)
+- Filtro por componente no histórico de hardware (CPU, RAM, Placa-mãe, BIOS, Disco, Rede)
+- Paginação no endpoint `GET /devices/:id/hardware-history` com suporte a `?component=&page=&limit=`
+- Migration 008 — colunas `component`, `change_type`, `field`, `old_value`, `new_value` em `hardware_history`
+
 ## [1.0.0] - 2026-02-18
 
 ### Adicionado

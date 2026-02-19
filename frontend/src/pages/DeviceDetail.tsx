@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getDevice, updateDeviceStatus, updateDeviceDepartment, deleteDevice, getDeviceActivity } from '../api/devices';
+import { getDevice, updateDeviceStatus, updateDeviceDepartment, deleteDevice, getDeviceActivity, getHardwareHistory } from '../api/devices';
 import { getDepartments } from '../api/departments';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { Button, Badge, Select, Card, CardHeader, CardContent, Modal } from '../components/ui';
-import type { RemoteTool, Hardware, DeviceActivityLog } from '../types';
+import type { RemoteTool, Hardware, DeviceActivityLog, HardwareHistory } from '../types';
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -62,6 +62,8 @@ export default function DeviceDetail() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [activityPage, setActivityPage] = useState(1);
+  const [hwHistoryPage, setHwHistoryPage] = useState(1);
+  const [hwHistoryFilter, setHwHistoryFilter] = useState('');
   const { data, isLoading, error } = useQuery({
     queryKey: ['device', id],
     queryFn: () => getDevice(id!),
@@ -71,6 +73,12 @@ export default function DeviceDetail() {
   const { data: activityData, isLoading: activityLoading } = useQuery({
     queryKey: ['device-activity', id, activityPage],
     queryFn: () => getDeviceActivity(id!, activityPage),
+    enabled: !!id && activeTab === 'history',
+  });
+
+  const { data: hwHistoryData, isLoading: hwHistoryLoading } = useQuery({
+    queryKey: ['device-hw-history', id, hwHistoryPage, hwHistoryFilter],
+    queryFn: () => getHardwareHistory(id!, hwHistoryPage, 20, hwHistoryFilter),
     enabled: !!id && activeTab === 'history',
   });
 
@@ -513,34 +521,65 @@ export default function DeviceDetail() {
             </Section>
 
             {/* ── Hardware History ──────────────────────────────────────── */}
-            {hardware_history && hardware_history.length > 0 && (
-              <Section title="Alterações de Hardware">
-                <div className="space-y-3">
-                  {hardware_history.map((h) => {
-                    let snapshot: Partial<Hardware> = {};
-                    try { snapshot = JSON.parse(h.snapshot); } catch { /* ignore */ }
-                    return (
-                      <div key={h.id} className="bg-bg-tertiary rounded-lg border border-border-primary p-4">
-                        <p className="text-xs text-text-muted mb-2">
-                          Alterado em: {new Date(h.changed_at).toLocaleString('pt-BR')}
-                        </p>
-                        <Grid>
-                          {snapshot.cpu_model && <Field label="CPU" value={snapshot.cpu_model} />}
-                          {snapshot.cpu_cores != null && snapshot.cpu_threads != null && (
-                            <Field label="Cores / Threads" value={`${snapshot.cpu_cores} / ${snapshot.cpu_threads}`} />
-                          )}
-                          {snapshot.ram_total_bytes != null && <Field label="RAM" value={formatBytes(snapshot.ram_total_bytes)} />}
-                          {(snapshot.motherboard_manufacturer || snapshot.motherboard_product) && (
-                            <Field label="Placa-mãe" value={`${snapshot.motherboard_manufacturer ?? ''} ${snapshot.motherboard_product ?? ''}`.trim()} />
-                          )}
-                          {snapshot.bios_vendor && <Field label="BIOS" value={`${snapshot.bios_vendor} ${snapshot.bios_version ?? ''}`.trim()} />}
-                        </Grid>
+            <Section title="Alterações de Hardware">
+              {/* Component filter */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-xs text-text-muted">Filtrar por:</span>
+                {['', 'cpu', 'ram', 'motherboard', 'bios', 'disk', 'network'].map((comp) => (
+                  <button
+                    key={comp}
+                    onClick={() => { setHwHistoryFilter(comp); setHwHistoryPage(1); }}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                      hwHistoryFilter === comp
+                        ? 'bg-accent text-white border-accent'
+                        : 'bg-bg-tertiary text-text-secondary border-border-primary hover:border-accent hover:text-accent'
+                    }`}
+                  >
+                    {comp === '' ? 'Todos' : COMPONENT_LABELS[comp] ?? comp}
+                  </button>
+                ))}
+              </div>
+
+              {hwHistoryLoading ? (
+                <p className="text-sm text-text-muted py-4">Carregando...</p>
+              ) : hwHistoryData && hwHistoryData.changes && hwHistoryData.changes.length > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    {hwHistoryData.changes.map((h: HardwareHistory) => (
+                      <HardwareChangeRow key={h.id} change={h} />
+                    ))}
+                  </div>
+                  {hwHistoryData.total > hwHistoryData.limit && (
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-border-primary">
+                      <span className="text-xs text-text-muted">
+                        Página {hwHistoryData.page} de {Math.ceil(hwHistoryData.total / hwHistoryData.limit)}
+                        {' '}({hwHistoryData.total} registros)
+                      </span>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={hwHistoryPage <= 1}
+                          onClick={() => setHwHistoryPage((p) => p - 1)}
+                        >
+                          Anterior
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={hwHistoryPage >= Math.ceil(hwHistoryData.total / hwHistoryData.limit)}
+                          onClick={() => setHwHistoryPage((p) => p + 1)}
+                        >
+                          Próxima
+                        </Button>
                       </div>
-                    );
-                  })}
-                </div>
-              </Section>
-            )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <EmptyState message="Nenhuma alteração de hardware registrada para este dispositivo." />
+              )}
+            </Section>
           </>
         )}
       </div>
@@ -613,6 +652,114 @@ function ActivityRow({ activity }: { activity: DeviceActivityLog }) {
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Hardware Change Row — renders a single hardware change entry with timeline style
+// ---------------------------------------------------------------------------
+
+const COMPONENT_LABELS: Record<string, string> = {
+  cpu: 'CPU',
+  ram: 'RAM',
+  motherboard: 'Placa-mãe',
+  bios: 'BIOS',
+  disk: 'Disco',
+  network: 'Rede',
+};
+
+const COMPONENT_COLORS: Record<string, string> = {
+  cpu: 'text-blue-500 bg-blue-500/10',
+  ram: 'text-purple-500 bg-purple-500/10',
+  motherboard: 'text-orange-500 bg-orange-500/10',
+  bios: 'text-cyan-500 bg-cyan-500/10',
+  disk: 'text-amber-500 bg-amber-500/10',
+  network: 'text-teal-500 bg-teal-500/10',
+};
+
+const CHANGE_TYPE_LABELS: Record<string, { label: string; color: string }> = {
+  changed: { label: 'Alterado', color: 'text-yellow-600 bg-yellow-500/10' },
+  added: { label: 'Adicionado', color: 'text-green-500 bg-green-500/10' },
+  removed: { label: 'Removido', color: 'text-red-500 bg-red-500/10' },
+};
+
+const COMPONENT_ICONS: Record<string, React.ReactNode> = {
+  cpu: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6.75v10.5a2.25 2.25 0 002.25 2.25zm.75-12h9v9h-9v-9z" /></svg>,
+  ram: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 6h12M6 6v12m0-12L4.5 4.5M18 6v12m0-12l1.5-1.5M6 18h12M6 18l-1.5 1.5M18 18l1.5 1.5M9 9h6v6H9V9z" /></svg>,
+  motherboard: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" /></svg>,
+  bios: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17l-5.1-5.1m0 0L11.42 4.97m-5.1 5.1H21" /></svg>,
+  disk: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375" /></svg>,
+  network: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3" /></svg>,
+};
+
+function HardwareChangeRow({ change }: { change: HardwareHistory }) {
+  const component = change.component ?? 'unknown';
+  const changeType = change.change_type ?? 'changed';
+  const compColor = COMPONENT_COLORS[component] ?? 'text-text-muted bg-bg-tertiary';
+  const compLabel = COMPONENT_LABELS[component] ?? component;
+  const compIcon = COMPONENT_ICONS[component] ?? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
+  const ctConfig = CHANGE_TYPE_LABELS[changeType] ?? { label: changeType, color: 'text-text-muted bg-bg-tertiary' };
+  const fieldLabel = change.field ? (FIELD_LABELS[change.field] ?? change.field) : '';
+
+  return (
+    <div className="flex items-start gap-3 py-2.5 px-3 rounded-lg hover:bg-bg-tertiary/50 transition-colors">
+      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${compColor}`}>
+        {compIcon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${compColor}`}>
+            {compLabel}
+          </span>
+          {fieldLabel && (
+            <span className="text-xs text-text-muted">
+              {fieldLabel}
+            </span>
+          )}
+          <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${ctConfig.color}`}>
+            {ctConfig.label}
+          </span>
+          <span className="text-xs text-text-muted ml-auto">
+            {new Date(change.changed_at).toLocaleString('pt-BR')}
+          </span>
+        </div>
+        {(change.old_value || change.new_value) && (
+          <div className="flex items-center gap-1.5 mt-1.5 text-sm">
+            {change.old_value && (
+              <code className="bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded text-xs">
+                {change.old_value}
+              </code>
+            )}
+            {change.old_value && change.new_value && (
+              <svg className="w-3.5 h-3.5 text-text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            )}
+            {change.new_value && (
+              <code className="bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded text-xs">
+                {change.new_value}
+              </code>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  model: 'Modelo',
+  cores: 'Cores',
+  threads: 'Threads',
+  total_bytes: 'Total',
+  manufacturer: 'Fabricante',
+  product: 'Produto',
+  serial: 'Serial',
+  vendor: 'Fabricante',
+  version: 'Versão',
+  disk: 'Disco',
+  size_bytes: 'Tamanho',
+  media_type: 'Tipo de Mídia',
+  interface: 'Interface',
+};
 
 // ---------------------------------------------------------------------------
 // Remote Tool Row — compact list item with copy-to-clipboard

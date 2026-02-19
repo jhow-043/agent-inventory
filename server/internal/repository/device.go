@@ -191,18 +191,40 @@ func (r *DeviceRepository) UpdateDepartment(ctx context.Context, id uuid.UUID, d
 	return nil
 }
 
-// GetHardwareHistory returns hardware change snapshots for a device, newest first.
-func (r *DeviceRepository) GetHardwareHistory(ctx context.Context, deviceID uuid.UUID) ([]models.HardwareHistory, error) {
+// GetHardwareHistory returns hardware change records for a device, newest first.
+// If component is non-empty, only changes for that component are returned.
+func (r *DeviceRepository) GetHardwareHistory(ctx context.Context, deviceID uuid.UUID, component string, limit, offset int) ([]models.HardwareHistory, int, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+
+	args := []interface{}{deviceID}
+	where := "WHERE device_id = $1"
+	argIdx := 2
+	if component != "" {
+		where += fmt.Sprintf(" AND component = $%d", argIdx)
+		args = append(args, component)
+		argIdx++
+	}
+
+	// Count
+	var total int
+	if err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM hardware_history "+where, args...); err != nil {
+		return nil, 0, fmt.Errorf("count hardware history: %w", err)
+	}
+
+	// Data
+	query := fmt.Sprintf("SELECT * FROM hardware_history %s ORDER BY changed_at DESC LIMIT $%d OFFSET $%d", where, argIdx, argIdx+1)
+	args = append(args, limit, offset)
+
 	var history []models.HardwareHistory
-	err := r.db.SelectContext(ctx, &history,
-		"SELECT * FROM hardware_history WHERE device_id = $1 ORDER BY changed_at DESC", deviceID)
-	if err != nil {
-		return nil, fmt.Errorf("get hardware history: %w", err)
+	if err := r.db.SelectContext(ctx, &history, query, args...); err != nil {
+		return nil, 0, fmt.Errorf("get hardware history: %w", err)
 	}
 	if history == nil {
 		history = []models.HardwareHistory{}
 	}
-	return history, nil
+	return history, total, nil
 }
 
 // ListForExport returns ALL devices matching the filters (no pagination) for CSV export.

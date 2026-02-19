@@ -155,28 +155,195 @@ func (r *InventoryRepository) Save(ctx context.Context, deviceID uuid.UUID, req 
 		return fmt.Errorf("upsert device: %w", err)
 	}
 
-	// Upsert hardware — save a snapshot first if hardware changed.
+	// Upsert hardware — detect granular changes and save structured history.
 	var existingHW models.Hardware
 	hwErr := tx.GetContext(ctx, &existingHW, "SELECT * FROM hardware WHERE device_id = $1", deviceID)
 	if hwErr == nil {
-		// Hardware row exists — compare key fields.
+		// Hardware row exists — compare fields and record each change individually.
 		incoming := req.Hardware
-		changed := existingHW.CPUModel != incoming.CPUModel ||
-			existingHW.CPUCores != incoming.CPUCores ||
-			existingHW.CPUThreads != incoming.CPUThreads ||
-			existingHW.RAMTotalBytes != incoming.RAMTotalBytes ||
-			existingHW.MotherboardManufacturer != incoming.MotherboardManufacturer ||
-			existingHW.MotherboardProduct != incoming.MotherboardProduct ||
-			existingHW.MotherboardSerial != incoming.MotherboardSerial ||
-			existingHW.BIOSVendor != incoming.BIOSVendor ||
-			existingHW.BIOSVersion != incoming.BIOSVersion
 
-		if changed {
+		type hwChange struct {
+			Component  string
+			Field      string
+			ChangeType string
+			OldValue   string
+			NewValue   string
+		}
+		var hwChanges []hwChange
+
+		// CPU changes
+		if existingHW.CPUModel != incoming.CPUModel {
+			hwChanges = append(hwChanges, hwChange{"cpu", "model", "changed", existingHW.CPUModel, incoming.CPUModel})
+		}
+		if existingHW.CPUCores != incoming.CPUCores {
+			hwChanges = append(hwChanges, hwChange{"cpu", "cores", "changed", fmt.Sprintf("%d", existingHW.CPUCores), fmt.Sprintf("%d", incoming.CPUCores)})
+		}
+		if existingHW.CPUThreads != incoming.CPUThreads {
+			hwChanges = append(hwChanges, hwChange{"cpu", "threads", "changed", fmt.Sprintf("%d", existingHW.CPUThreads), fmt.Sprintf("%d", incoming.CPUThreads)})
+		}
+
+		// RAM changes
+		if existingHW.RAMTotalBytes != incoming.RAMTotalBytes {
+			hwChanges = append(hwChanges, hwChange{"ram", "total_bytes", "changed", formatBytesGo(existingHW.RAMTotalBytes), formatBytesGo(incoming.RAMTotalBytes)})
+		}
+
+		// Motherboard changes
+		if existingHW.MotherboardManufacturer != incoming.MotherboardManufacturer {
+			hwChanges = append(hwChanges, hwChange{"motherboard", "manufacturer", "changed", existingHW.MotherboardManufacturer, incoming.MotherboardManufacturer})
+		}
+		if existingHW.MotherboardProduct != incoming.MotherboardProduct {
+			hwChanges = append(hwChanges, hwChange{"motherboard", "product", "changed", existingHW.MotherboardProduct, incoming.MotherboardProduct})
+		}
+		if existingHW.MotherboardSerial != incoming.MotherboardSerial {
+			hwChanges = append(hwChanges, hwChange{"motherboard", "serial", "changed", existingHW.MotherboardSerial, incoming.MotherboardSerial})
+		}
+
+		// BIOS changes
+		if existingHW.BIOSVendor != incoming.BIOSVendor {
+			hwChanges = append(hwChanges, hwChange{"bios", "vendor", "changed", existingHW.BIOSVendor, incoming.BIOSVendor})
+		}
+		if existingHW.BIOSVersion != incoming.BIOSVersion {
+			hwChanges = append(hwChanges, hwChange{"bios", "version", "changed", existingHW.BIOSVersion, incoming.BIOSVersion})
+		}
+
+		if len(hwChanges) > 0 {
+			// Save full snapshot (backward compatible)
 			snapshot, _ := json.Marshal(existingHW)
-			if _, err = tx.ExecContext(ctx,
-				"INSERT INTO hardware_history (id, device_id, snapshot, changed_at) VALUES (uuid_generate_v4(), $1, $2, NOW())",
-				deviceID, string(snapshot)); err != nil {
-				return fmt.Errorf("save hardware history: %w", err)
+			for _, ch := range hwChanges {
+				if _, err = tx.ExecContext(ctx,
+					`INSERT INTO hardware_history (id, device_id, snapshot, component, change_type, field, old_value, new_value, changed_at)
+					 VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, NOW())`,
+					deviceID, string(snapshot), ch.Component, ch.ChangeType, ch.Field, ch.OldValue, ch.NewValue); err != nil {
+					return fmt.Errorf("save hardware history: %w", err)
+				}
+			}
+		}
+
+		// ── Disk changes — compare by serial or model ────────────────
+		var currentDisks []models.Disk
+		if err := tx.SelectContext(ctx, &currentDisks, "SELECT * FROM disks WHERE device_id = $1", deviceID); err == nil {
+			// Build lookup maps: use serial_number as key if available, otherwise model
+			currentDiskMap := make(map[string]models.Disk, len(currentDisks))
+			for _, d := range currentDisks {
+				key := strings.TrimSpace(d.SerialNumber)
+				if key == "" {
+					key = "model:" + strings.TrimSpace(d.Model)
+				}
+				currentDiskMap[key] = d
+			}
+			incomingDiskMap := make(map[string]dto.DiskData, len(req.Disks))
+			for _, d := range req.Disks {
+				key := strings.TrimSpace(d.SerialNumber)
+				if key == "" {
+					key = "model:" + strings.TrimSpace(d.Model)
+				}
+				incomingDiskMap[key] = d
+			}
+
+			snapshot, _ := json.Marshal(currentDisks)
+			snapshotStr := string(snapshot)
+
+			// Detect new disks
+			for key, d := range incomingDiskMap {
+				if _, exists := currentDiskMap[key]; !exists {
+					desc := fmt.Sprintf("%s (%s)", strings.TrimSpace(d.Model), formatBytesGo(d.SizeBytes))
+					if _, err = tx.ExecContext(ctx,
+						`INSERT INTO hardware_history (id, device_id, snapshot, component, change_type, field, old_value, new_value, changed_at)
+						 VALUES (uuid_generate_v4(), $1, $2, 'disk', 'added', 'disk', '', $3, NOW())`,
+						deviceID, snapshotStr, desc); err != nil {
+						return fmt.Errorf("save disk added history: %w", err)
+					}
+				}
+			}
+			// Detect removed disks
+			for key, d := range currentDiskMap {
+				if _, exists := incomingDiskMap[key]; !exists {
+					desc := fmt.Sprintf("%s (%s)", strings.TrimSpace(d.Model), formatBytesGo(d.SizeBytes))
+					if _, err = tx.ExecContext(ctx,
+						`INSERT INTO hardware_history (id, device_id, snapshot, component, change_type, field, old_value, new_value, changed_at)
+						 VALUES (uuid_generate_v4(), $1, $2, 'disk', 'removed', 'disk', $3, '', NOW())`,
+						deviceID, snapshotStr, desc); err != nil {
+						return fmt.Errorf("save disk removed history: %w", err)
+					}
+				}
+			}
+			// Detect changed disks (same key, different size or media type)
+			for key, curr := range currentDiskMap {
+				if inc, exists := incomingDiskMap[key]; exists {
+					if curr.SizeBytes != inc.SizeBytes {
+						if _, err = tx.ExecContext(ctx,
+							`INSERT INTO hardware_history (id, device_id, snapshot, component, change_type, field, old_value, new_value, changed_at)
+							 VALUES (uuid_generate_v4(), $1, $2, 'disk', 'changed', 'size_bytes', $3, $4, NOW())`,
+							deviceID, snapshotStr,
+							fmt.Sprintf("%s: %s", strings.TrimSpace(curr.Model), formatBytesGo(curr.SizeBytes)),
+							fmt.Sprintf("%s: %s", strings.TrimSpace(curr.Model), formatBytesGo(inc.SizeBytes))); err != nil {
+							return fmt.Errorf("save disk change history: %w", err)
+						}
+					}
+					if curr.MediaType != inc.MediaType && inc.MediaType != "" {
+						if _, err = tx.ExecContext(ctx,
+							`INSERT INTO hardware_history (id, device_id, snapshot, component, change_type, field, old_value, new_value, changed_at)
+							 VALUES (uuid_generate_v4(), $1, $2, 'disk', 'changed', 'media_type', $3, $4, NOW())`,
+							deviceID, snapshotStr,
+							fmt.Sprintf("%s: %s", strings.TrimSpace(curr.Model), curr.MediaType),
+							fmt.Sprintf("%s: %s", strings.TrimSpace(curr.Model), inc.MediaType)); err != nil {
+							return fmt.Errorf("save disk media type change: %w", err)
+						}
+					}
+				}
+			}
+		}
+
+		// ── Network interface changes — compare by MAC address ───────
+		var currentNICs []models.NetworkInterface
+		if err := tx.SelectContext(ctx, &currentNICs, "SELECT * FROM network_interfaces WHERE device_id = $1", deviceID); err == nil {
+			currentNICMap := make(map[string]models.NetworkInterface, len(currentNICs))
+			for _, n := range currentNICs {
+				key := strings.TrimSpace(strings.ToLower(n.MACAddress))
+				if key == "" {
+					key = "name:" + strings.TrimSpace(n.Name)
+				}
+				currentNICMap[key] = n
+			}
+			incomingNICMap := make(map[string]dto.NetworkData, len(req.Network))
+			for _, n := range req.Network {
+				key := strings.TrimSpace(strings.ToLower(n.MACAddress))
+				if key == "" {
+					key = "name:" + strings.TrimSpace(n.Name)
+				}
+				incomingNICMap[key] = n
+			}
+
+			nicSnapshot, _ := json.Marshal(currentNICs)
+			nicSnapshotStr := string(nicSnapshot)
+
+			for key, n := range incomingNICMap {
+				if _, exists := currentNICMap[key]; !exists {
+					desc := strings.TrimSpace(n.Name)
+					if n.MACAddress != "" {
+						desc += " (" + n.MACAddress + ")"
+					}
+					if _, err = tx.ExecContext(ctx,
+						`INSERT INTO hardware_history (id, device_id, snapshot, component, change_type, field, old_value, new_value, changed_at)
+						 VALUES (uuid_generate_v4(), $1, $2, 'network', 'added', 'interface', '', $3, NOW())`,
+						deviceID, nicSnapshotStr, desc); err != nil {
+						return fmt.Errorf("save NIC added history: %w", err)
+					}
+				}
+			}
+			for key, n := range currentNICMap {
+				if _, exists := incomingNICMap[key]; !exists {
+					desc := strings.TrimSpace(n.Name)
+					if n.MACAddress != "" {
+						desc += " (" + n.MACAddress + ")"
+					}
+					if _, err = tx.ExecContext(ctx,
+						`INSERT INTO hardware_history (id, device_id, snapshot, component, change_type, field, old_value, new_value, changed_at)
+						 VALUES (uuid_generate_v4(), $1, $2, 'network', 'removed', 'interface', $3, '', NOW())`,
+						deviceID, nicSnapshotStr, desc); err != nil {
+						return fmt.Errorf("save NIC removed history: %w", err)
+					}
+				}
 			}
 		}
 	} else if hwErr != sql.ErrNoRows {
@@ -305,4 +472,20 @@ func (r *InventoryRepository) Save(ctx context.Context, deviceID uuid.UUID, req 
 // strPtr returns a pointer to the given string.
 func strPtr(s string) *string {
 	return &s
+}
+
+// formatBytesGo converts bytes to a human-readable string (e.g. "16 GB").
+func formatBytesGo(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	sizes := []string{"KB", "MB", "GB", "TB"}
+	val := float64(b) / float64(div)
+	return fmt.Sprintf("%.1f %s", val, sizes[exp])
 }

@@ -79,7 +79,19 @@ export interface HardwareHistory {
   id: string;
   device_id: string;
   snapshot: string;
+  component: string | null;
+  change_type: string | null;
+  field: string | null;
+  old_value: string | null;
+  new_value: string | null;
   changed_at: string;
+}
+
+export interface HardwareHistoryResponse {
+  changes: HardwareHistory[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export interface Department {
@@ -131,7 +143,7 @@ export interface DeviceDetailResponse {
 export interface DeviceActivityLog {
   id: string;
   device_id: string;
-  activity_type: 'user_login' | 'software_installed' | 'software_removed' | 'os_updated' | 'boot';
+  activity_type: 'user_login' | 'software_installed' | 'software_removed' | 'os_updated' | 'boot' | 'hardware_changed';
   description: string;
   old_value: string | null;
   new_value: string | null;

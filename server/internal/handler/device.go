@@ -210,7 +210,8 @@ func (h *DeviceHandler) BulkDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.BulkActionResponse{Affected: int(affected), Message: fmt.Sprintf("%d device(s) deleted", affected)})
 }
 
-// GetHardwareHistory returns hardware change snapshots for a device.
+// GetHardwareHistory returns hardware change records for a device.
+// Supports filtering by component (?component=cpu|ram|disk|...) and pagination (?page=1&limit=50).
 func (h *DeviceHandler) GetHardwareHistory(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -218,14 +219,27 @@ func (h *DeviceHandler) GetHardwareHistory(c *gin.Context) {
 		return
 	}
 
-	history, err := h.service.GetDeviceDetail(c.Request.Context(), id)
+	component := c.Query("component")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	history, total, err := h.service.GetHardwareHistory(c.Request.Context(), id, component, limit, offset)
 	if err != nil {
 		slog.Error("failed to get hardware history", "error", err, "device_id", id)
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to get hardware history"})
 		return
 	}
 
-	c.JSON(http.StatusOK, history.HardwareHistory)
+	c.JSON(http.StatusOK, gin.H{
+		"changes": history,
+		"total":   total,
+		"page":    page,
+		"limit":   limit,
+	})
 }
 
 // GetDeviceActivity returns the activity log for a device.

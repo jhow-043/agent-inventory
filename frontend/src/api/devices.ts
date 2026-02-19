@@ -1,7 +1,7 @@
 // Device API calls.
 
 import { request } from './client';
-import type { DeviceListResponse, DeviceDetailResponse, DeviceActivityResponse, HardwareHistory } from '../types';
+import type { DeviceListResponse, DeviceDetailResponse, DeviceActivityResponse, HardwareHistoryResponse } from '../types';
 
 export interface DeviceListParams {
   hostname?: string;
@@ -52,8 +52,10 @@ export async function updateDeviceDepartment(id: string, departmentId: string | 
   });
 }
 
-export async function getHardwareHistory(id: string): Promise<HardwareHistory[]> {
-  return request<HardwareHistory[]>(`/devices/${id}/hardware-history`);
+export async function getHardwareHistory(id: string, page = 1, limit = 50, component = ''): Promise<HardwareHistoryResponse> {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (component) params.set('component', component);
+  return request<HardwareHistoryResponse>(`/devices/${id}/hardware-history?${params.toString()}`);
 }
 
 export async function getDeviceActivity(id: string, page = 1, limit = 50): Promise<DeviceActivityResponse> {

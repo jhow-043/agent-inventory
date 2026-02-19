@@ -65,7 +65,7 @@ func (s *DeviceService) GetDeviceDetail(ctx context.Context, id uuid.UUID) (*dto
 	if err != nil {
 		remoteTools = []models.RemoteTool{}
 	}
-	hwHistory, err := s.deviceRepo.GetHardwareHistory(ctx, id)
+	hwHistory, _, err := s.deviceRepo.GetHardwareHistory(ctx, id, "", 50, 0)
 	if err != nil {
 		hwHistory = []models.HardwareHistory{}
 	}
@@ -94,6 +94,11 @@ func (s *DeviceService) UpdateDepartment(ctx context.Context, id uuid.UUID, dept
 // ListForExport returns all devices matching the filters (no pagination) for CSV export.
 func (s *DeviceService) ListForExport(ctx context.Context, p repository.ListParams) ([]models.Device, error) {
 	return s.deviceRepo.ListForExport(ctx, p)
+}
+
+// GetHardwareHistory returns hardware change records for a device, with optional component filtering and pagination.
+func (s *DeviceService) GetHardwareHistory(ctx context.Context, id uuid.UUID, component string, limit, offset int) ([]models.HardwareHistory, int, error) {
+	return s.deviceRepo.GetHardwareHistory(ctx, id, component, limit, offset)
 }
 
 // BulkUpdateStatus changes the status of multiple devices at once.

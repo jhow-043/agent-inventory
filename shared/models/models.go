@@ -109,12 +109,18 @@ type Department struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
-// HardwareHistory stores a snapshot of hardware state before it changed.
+// HardwareHistory stores a snapshot of hardware state before it changed,
+// along with structured change details (component, field, old/new values).
 type HardwareHistory struct {
-	ID        uuid.UUID `json:"id" db:"id"`
-	DeviceID  uuid.UUID `json:"device_id" db:"device_id"`
-	Snapshot  string    `json:"snapshot" db:"snapshot"`
-	ChangedAt time.Time `json:"changed_at" db:"changed_at"`
+	ID         uuid.UUID `json:"id" db:"id"`
+	DeviceID   uuid.UUID `json:"device_id" db:"device_id"`
+	Snapshot   string    `json:"snapshot" db:"snapshot"`
+	Component  *string   `json:"component,omitempty" db:"component"`     // cpu, ram, motherboard, bios, disk, network
+	ChangeType *string   `json:"change_type,omitempty" db:"change_type"` // changed, added, removed
+	Field      *string   `json:"field,omitempty" db:"field"`             // e.g. model, total_bytes
+	OldValue   *string   `json:"old_value,omitempty" db:"old_value"`
+	NewValue   *string   `json:"new_value,omitempty" db:"new_value"`
+	ChangedAt  time.Time `json:"changed_at" db:"changed_at"`
 }
 
 type User struct {
