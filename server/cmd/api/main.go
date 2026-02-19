@@ -55,6 +55,7 @@ func runServer() {
 	dashboardRepo := repository.NewDashboardRepository(db)
 	departmentRepo := repository.NewDepartmentRepository(db)
 	auditRepo := repository.NewAuditLogRepository(db)
+	cleanupRepo := repository.NewCleanupRepository(db)
 
 	// ── Audit Logger ─────────────────────────────────────────────────
 	auditLogger := middleware.NewAuditLogger(auditRepo)
@@ -65,6 +66,7 @@ func runServer() {
 	deviceSvc := service.NewDeviceService(deviceRepo)
 	dashboardSvc := service.NewDashboardService(dashboardRepo)
 	departmentSvc := service.NewDepartmentService(departmentRepo)
+	cleanupSvc := service.NewCleanupService(cleanupRepo, cfg.RetentionDays, cfg.InactiveDays, cfg.CleanupInterval)
 
 	// ── Handlers ─────────────────────────────────────────────────────
 	healthHandler := handler.NewHealthHandler(db)
@@ -78,6 +80,9 @@ func runServer() {
 
 	// ── Router ───────────────────────────────────────────────────
 	r := router.Setup(cfg, healthHandler, inventoryHandler, authHandler, deviceHandler, dashboardHandler, userHandler, departmentHandler, auditHandler, tokenRepo)
+
+	// ── Background Services ─────────────────────────────────────────
+	cleanupSvc.Start()
 
 	// ── HTTP Server ──────────────────────────────────────────────────
 	srv := &http.Server{
@@ -102,6 +107,8 @@ func runServer() {
 	<-quit
 
 	slog.Info("shutting down server...")
+
+	cleanupSvc.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

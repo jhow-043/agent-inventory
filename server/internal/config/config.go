@@ -4,7 +4,9 @@ package config
 import (
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // Config holds all application configuration values.
@@ -15,16 +17,24 @@ type Config struct {
 	JWTSecret     string
 	EnrollmentKey string
 	CORSOrigins   []string
+
+	// Data retention
+	RetentionDays   int           // Purge logs/history older than this (default 90)
+	InactiveDays    int           // Mark devices inactive after this (default 30)
+	CleanupInterval time.Duration // How often cleanup runs (default 24h)
 }
 
 // Load reads configuration from environment variables and validates required fields.
 func Load() *Config {
 	cfg := &Config{
-		DatabaseURL:   getEnv("DATABASE_URL", "postgres://inventory:changeme@localhost:5432/inventory?sslmode=disable"),
-		ServerPort:    getEnv("SERVER_PORT", "8080"),
-		JWTSecret:     getEnv("JWT_SECRET", ""),
-		EnrollmentKey: getEnv("ENROLLMENT_KEY", ""),
-		CORSOrigins:   strings.Split(getEnv("CORS_ORIGINS", "http://localhost:3000"), ","),
+		DatabaseURL:     getEnv("DATABASE_URL", "postgres://inventory:changeme@localhost:5432/inventory?sslmode=disable"),
+		ServerPort:      getEnv("SERVER_PORT", "8080"),
+		JWTSecret:       getEnv("JWT_SECRET", ""),
+		EnrollmentKey:   getEnv("ENROLLMENT_KEY", ""),
+		CORSOrigins:     strings.Split(getEnv("CORS_ORIGINS", "http://localhost:3000"), ","),
+		RetentionDays:   getEnvInt("RETENTION_DAYS", 90),
+		InactiveDays:    getEnvInt("INACTIVE_DAYS", 30),
+		CleanupInterval: getEnvDuration("CLEANUP_INTERVAL", 24*time.Hour),
 	}
 
 	switch strings.ToLower(getEnv("LOG_LEVEL", "info")) {
@@ -56,6 +66,24 @@ func Load() *Config {
 func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
+	}
+	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if value, ok := os.LookupEnv(key); ok {
+		if v, err := strconv.Atoi(value); err == nil {
+			return v
+		}
+	}
+	return fallback
+}
+
+func getEnvDuration(key string, fallback time.Duration) time.Duration {
+	if value, ok := os.LookupEnv(key); ok {
+		if d, err := time.ParseDuration(value); err == nil {
+			return d
+		}
 	}
 	return fallback
 }
