@@ -33,7 +33,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       ENROLLMENT_KEY: ${ENROLLMENT_KEY:?ENROLLMENT_KEY is required}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://192.168.30.56:5173}
     depends_on:
       postgres:
         condition: service_healthy
