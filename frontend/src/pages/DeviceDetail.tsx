@@ -8,7 +8,7 @@ import { getDepartments } from '../api/departments';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { Button, Badge, Select, Card, CardHeader, CardContent, Modal } from '../components/ui';
-import type { RemoteTool, Hardware, DeviceActivityLog, HardwareHistory } from '../types';
+import type { RemoteTool, DeviceActivityLog, HardwareHistory } from '../types';
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -129,7 +129,7 @@ export default function DeviceDetail() {
   if (error) return <p className="text-danger">Failed to load device details.</p>;
   if (!data) return null;
 
-  const { device, hardware, disks, network_interfaces, installed_software, remote_tools, hardware_history } = data;
+  const { device, hardware, disks, network_interfaces, installed_software, remote_tools } = data;
   const departments = deptData?.departments ?? [];
   const isInactive = device.status === 'inactive';
 

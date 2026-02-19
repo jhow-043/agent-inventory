@@ -23,6 +23,8 @@ linters-settings:
     locale: US
     ignore-words:
       - inventario
+      - operacional
+      - atualizado
 
 issues:
   exclude-rules:
