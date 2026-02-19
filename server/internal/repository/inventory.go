@@ -476,6 +476,9 @@ func strPtr(s string) *string {
 
 // formatBytesGo converts bytes to a human-readable string (e.g. "16 GB").
 func formatBytesGo(b int64) string {
+	if b <= 0 {
+		return "N/A"
+	}
 	const unit = 1024
 	if b < unit {
 		return fmt.Sprintf("%d B", b)

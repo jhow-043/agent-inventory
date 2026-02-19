@@ -199,7 +199,7 @@ func (r *DeviceRepository) GetHardwareHistory(ctx context.Context, deviceID uuid
 	}
 
 	args := []interface{}{deviceID}
-	where := "WHERE device_id = $1"
+	where := "WHERE device_id = $1 AND component IS NOT NULL"
 	argIdx := 2
 	if component != "" {
 		where += fmt.Sprintf(" AND component = $%d", argIdx)
