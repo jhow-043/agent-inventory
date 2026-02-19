@@ -1,47 +1,55 @@
-# Binaries
+# ─── Binaries ────────────────────────────────────────
 *.exe
+*.exe~
 *.dll
 *.so
 *.dylib
 /bin/
+/out/
 
-# Test
+# ─── Go ──────────────────────────────────────────────
 *.test
 *.out
 coverage.html
+coverage.out
+vendor/
 
-# IDE
+# ─── IDE ─────────────────────────────────────────────
 .vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
+*~
 
-# OS
+# ─── OS ──────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+Desktop.ini
 
-# Environment
+# ─── Environment ─────────────────────────────────────
 .env
+.env.local
+.env.*.local
 
-# Docker volumes
+# ─── Docker ──────────────────────────────────────────
 postgres-data/
 
-# Node.js (frontend)
+# ─── Node.js (frontend) ─────────────────────────────
 node_modules/
 frontend/dist/
 web/dist/
-web/.env.local
 
-# Agent data
+# ─── Agent data (runtime) ───────────────────────────
 agent/data/
 agent/config.json
 agent/build/
 agent/installer/output/
 
-# Documentation (ITIL) - separate deliverable
-docs/
-
-# Misc
+# ─── Misc ────────────────────────────────────────────
 cookies.txt
 login.json
 imagens/
+*.log
+*.tmp
