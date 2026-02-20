@@ -368,7 +368,7 @@ export default function Dashboard() {
                   {recentDevices.map((d) => (
                     <tr key={d.id} className="border-b border-border-primary/50 last:border-0">
                       <td className="py-2.5">
-                        <Link to={`/devices/${d.id}`} className="text-accent hover:text-accent-hover font-medium transition-colors">
+                        <Link to={`/devices/${encodeURIComponent(d.hostname)}`} className="text-accent hover:text-accent-hover font-medium transition-colors">
                           {d.hostname}
                         </Link>
                       </td>

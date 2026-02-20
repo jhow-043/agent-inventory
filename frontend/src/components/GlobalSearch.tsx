@@ -30,8 +30,8 @@ export default function GlobalSearch() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleSelect = (id: string) => {
-    navigate(`/devices/${id}`);
+  const handleSelect = (hostname: string) => {
+    navigate(`/devices/${encodeURIComponent(hostname)}`);
     setQuery('');
     setOpen(false);
   };
@@ -72,7 +72,7 @@ export default function GlobalSearch() {
               {results.map((d) => (
                 <li key={d.id}>
                   <button
-                    onClick={() => handleSelect(d.id)}
+                    onClick={() => handleSelect(d.hostname)}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-bg-tertiary transition-colors cursor-pointer"
                   >
                     <svg className="w-4 h-4 text-text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

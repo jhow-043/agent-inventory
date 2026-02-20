@@ -39,6 +39,29 @@ func (s *DeviceService) ListDevices(ctx context.Context, p repository.ListParams
 
 // GetDeviceDetail returns a device with all its related data.
 func (s *DeviceService) GetDeviceDetail(ctx context.Context, id uuid.UUID) (*dto.DeviceDetailResponse, error) {
+	return s.buildDeviceDetail(ctx, id)
+}
+
+// GetDeviceDetailByHostname returns a device detail looked up by hostname.
+func (s *DeviceService) GetDeviceDetailByHostname(ctx context.Context, hostname string) (*dto.DeviceDetailResponse, error) {
+	device, err := s.deviceRepo.GetByHostname(ctx, hostname)
+	if err != nil {
+		return nil, fmt.Errorf("device not found")
+	}
+	return s.buildDeviceDetail(ctx, device.ID)
+}
+
+// ResolveDeviceID resolves a hostname to its UUID.
+func (s *DeviceService) ResolveDeviceID(ctx context.Context, hostname string) (uuid.UUID, error) {
+	device, err := s.deviceRepo.GetByHostname(ctx, hostname)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("device not found")
+	}
+	return device.ID, nil
+}
+
+// buildDeviceDetail fetches a device and all related data by UUID.
+func (s *DeviceService) buildDeviceDetail(ctx context.Context, id uuid.UUID) (*dto.DeviceDetailResponse, error) {
 	device, err := s.deviceRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

@@ -163,6 +163,18 @@ func (r *DeviceRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.D
 	return &device, nil
 }
 
+// GetByHostname retrieves a single device by its hostname, including department name.
+func (r *DeviceRepository) GetByHostname(ctx context.Context, hostname string) (*models.Device, error) {
+	var device models.Device
+	err := r.db.GetContext(ctx, &device, `SELECT d.*, dep.name AS department_name
+		FROM devices d LEFT JOIN departments dep ON dep.id = d.department_id
+		WHERE LOWER(d.hostname) = LOWER($1)`, hostname)
+	if err != nil {
+		return nil, err
+	}
+	return &device, nil
+}
+
 // UpdateStatus sets the status column of a device (active / inactive).
 func (r *DeviceRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
 	res, err := r.db.ExecContext(ctx,

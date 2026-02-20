@@ -143,13 +143,13 @@ export default function Departments() {
                         autoFocus
                       />
                     ) : (
-                      <Link to={`/departments/${d.id}`} className="font-medium text-accent hover:text-accent-hover transition-colors">
+                      <Link to={`/departments/${encodeURIComponent(d.name)}`} className="font-medium text-accent hover:text-accent-hover transition-colors">
                         {d.name}
                       </Link>
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    <Link to={`/departments/${d.id}`}>
+                    <Link to={`/departments/${encodeURIComponent(d.name)}`}>
                       <Badge variant={allDevices.filter((dev) => dev.department_id === d.id).length > 0 ? 'accent' : 'neutral'}>
                         {allDevices.filter((dev) => dev.department_id === d.id).length}
                       </Badge>

@@ -24,6 +24,17 @@ type DeviceHandler struct {
 	activityRepo *repository.DeviceActivityRepository
 }
 
+// resolveDeviceID tries to parse the :id param as UUID; if it fails, treats it as a hostname.
+func (h *DeviceHandler) resolveDeviceID(c *gin.Context) (uuid.UUID, error) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err == nil {
+		return id, nil
+	}
+	// Fallback: treat as hostname
+	return h.service.ResolveDeviceID(c.Request.Context(), idStr)
+}
+
 // NewDeviceHandler creates a new DeviceHandler.
 func NewDeviceHandler(svc *service.DeviceService, auditLogger *middleware.AuditLogger, activityRepo *repository.DeviceActivityRepository) *DeviceHandler {
 	return &DeviceHandler{service: svc, auditLogger: auditLogger, activityRepo: activityRepo}
@@ -58,27 +69,35 @@ func (h *DeviceHandler) ListDevices(c *gin.Context) {
 // GetDevice returns full details for a single device, including hardware, disks, NICs, and software.
 func (h *DeviceHandler) GetDevice(c *gin.Context) {
 	idStr := c.Param("id")
+
+	// Try UUID first
 	id, err := uuid.Parse(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid device ID"})
+	if err == nil {
+		detail, err := h.service.GetDeviceDetail(c.Request.Context(), id)
+		if err != nil {
+			slog.Error("failed to get device detail", "error", err, "device_id", id)
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+			return
+		}
+		c.JSON(http.StatusOK, detail)
 		return
 	}
 
-	detail, err := h.service.GetDeviceDetail(c.Request.Context(), id)
+	// Fallback: treat as hostname
+	detail, err := h.service.GetDeviceDetailByHostname(c.Request.Context(), idStr)
 	if err != nil {
-		slog.Error("failed to get device detail", "error", err, "device_id", id)
+		slog.Error("failed to get device detail by hostname", "error", err, "hostname", idStr)
 		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
 		return
 	}
-
 	c.JSON(http.StatusOK, detail)
 }
 
 // UpdateStatus changes a device's status (active / inactive).
 func (h *DeviceHandler) UpdateStatus(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := h.resolveDeviceID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid device ID"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
 		return
 	}
 
@@ -100,9 +119,9 @@ func (h *DeviceHandler) UpdateStatus(c *gin.Context) {
 
 // UpdateDepartment assigns or removes a department from a device.
 func (h *DeviceHandler) UpdateDepartment(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := h.resolveDeviceID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid device ID"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
 		return
 	}
 
@@ -124,9 +143,9 @@ func (h *DeviceHandler) UpdateDepartment(c *gin.Context) {
 
 // DeleteDevice deletes a device and all related data.
 func (h *DeviceHandler) DeleteDevice(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := h.resolveDeviceID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid device ID"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
 		return
 	}
 
@@ -213,9 +232,9 @@ func (h *DeviceHandler) BulkDelete(c *gin.Context) {
 // GetHardwareHistory returns hardware change records for a device.
 // Supports filtering by component (?component=cpu|ram|disk|...) and pagination (?page=1&limit=50).
 func (h *DeviceHandler) GetHardwareHistory(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := h.resolveDeviceID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid device ID"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
 		return
 	}
 
@@ -244,9 +263,9 @@ func (h *DeviceHandler) GetHardwareHistory(c *gin.Context) {
 
 // GetDeviceActivity returns the activity log for a device.
 func (h *DeviceHandler) GetDeviceActivity(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := h.resolveDeviceID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid device ID"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
 		return
 	}
 

@@ -12,7 +12,8 @@ type SortCol = 'hostname' | 'os' | 'last_seen' | 'status';
 type SortOrder = 'asc' | 'desc';
 
 export default function DepartmentDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id: slug } = useParams<{ id: string }>();
+  const decodedSlug = slug ? decodeURIComponent(slug) : '';
 
   // Filters
   const [hostname, setHostname] = useState('');
@@ -31,14 +32,14 @@ export default function DepartmentDetail() {
     queryKey: ['departments'],
     queryFn: getDepartments,
   });
-  const department = deptData?.departments.find((d) => d.id === id);
+  const department = deptData?.departments.find((d) => d.name === decodedSlug);
 
   // Fetch devices for this department
   const { data, isLoading, error } = useQuery({
-    queryKey: ['dept-devices', id, debouncedHostname, debouncedOs, status, sort, order, page],
+    queryKey: ['dept-devices', department?.id, debouncedHostname, debouncedOs, status, sort, order, page],
     queryFn: () =>
       getDevices({
-        department_id: id,
+        department_id: department?.id,
         hostname: debouncedHostname || undefined,
         os: debouncedOs || undefined,
         status: status || undefined,
@@ -47,7 +48,7 @@ export default function DepartmentDetail() {
         page,
         limit,
       }),
-    enabled: !!id,
+    enabled: !!department?.id,
   });
 
   const devices = data?.devices ?? [];
@@ -70,7 +71,7 @@ export default function DepartmentDetail() {
 
   const handleExportCSV = () => {
     exportDevicesCSV({
-      department_id: id,
+      department_id: department?.id,
       hostname: debouncedHostname || undefined,
       os: debouncedOs || undefined,
       status: status || undefined,
@@ -211,7 +212,7 @@ export default function DepartmentDetail() {
                   return (
                     <tr key={d.id} className="hover:bg-bg-tertiary/50 transition-colors">
                       <td className="px-4 py-3 text-sm">
-                        <Link to={`/devices/${d.id}`} className="text-accent hover:text-accent-hover font-medium transition-colors">
+                        <Link to={`/devices/${encodeURIComponent(d.hostname)}`} className="text-accent hover:text-accent-hover font-medium transition-colors">
                           {d.hostname}
                         </Link>
                       </td>

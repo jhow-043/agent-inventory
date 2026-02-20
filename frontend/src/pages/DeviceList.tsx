@@ -462,7 +462,7 @@ export default function DeviceList() {
                         </td>
                       )}
                       <td className="px-4 py-3 text-sm">
-                        <Link to={`/devices/${d.id}`} className="text-accent hover:text-accent-hover font-medium transition-colors">
+                        <Link to={`/devices/${encodeURIComponent(d.hostname)}`} className="text-accent hover:text-accent-hover font-medium transition-colors">
                           {d.hostname}
                         </Link>
                       </td>
