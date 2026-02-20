@@ -35,8 +35,8 @@ Um agente Windows coleta informações via WMI/Registry e envia para uma API cen
 │  │  Estação #2  │──┤  │    Go 1.24 + Gin    │────►│                  │   │
 │  │  Agent.exe   │  │  │    Port <sua porta> │     │  12 tabelas      │   │
 │  └──────────────┘  │  └─────────┬───────────┘     │  10 migrations   │   │
-│  ┌──────────────┐  │            │                  │                  │  │
-│  │  Estação #N  │──┘            │                  └──────────────────┘  │
+│  ┌──────────────┐  │            │                 │                  │   │
+│  │  Estação #N  │──┘            │                 └──────────────────┘   │
 │  │  Agent.exe   │               │                                        │
 │  └──────────────┘      ┌────────┴───────────┐                            │
 │                        │   Frontend SPA     │                            │
