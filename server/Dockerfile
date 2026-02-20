@@ -13,7 +13,7 @@ ENV GOWORK=off
 RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /app/server ./cmd/api
 
-FROM alpine:3.20
+FROM alpine:3.21
 
 RUN apk --no-cache add ca-certificates wget tzdata \
     && adduser -D -h /app appuser
