@@ -49,42 +49,7 @@ func (r *InventoryRepository) Save(ctx context.Context, deviceID uuid.UUID, req 
 	}
 
 	if deviceExists {
-		// 1. User login change
-		if existing.LoggedInUser != req.LoggedInUser && req.LoggedInUser != "" {
-			oldVal := existing.LoggedInUser
-			newVal := req.LoggedInUser
-			desc := fmt.Sprintf("Usuário logado alterado de '%s' para '%s'", oldVal, newVal)
-			if oldVal == "" {
-				desc = fmt.Sprintf("Usuário '%s' fez login", newVal)
-			}
-			activities = append(activities, ActivityEntry{
-				DeviceID: deviceID, ActivityType: "user_login",
-				Description: desc, OldValue: strPtr(oldVal), NewValue: strPtr(newVal),
-			})
-		}
-
-		// 2. OS update
-		if existing.OSVersion != req.OSVersion || existing.OSBuild != req.OSBuild {
-			oldVer := fmt.Sprintf("%s %s (Build %s)", existing.OSName, existing.OSVersion, existing.OSBuild)
-			newVer := fmt.Sprintf("%s %s (Build %s)", req.OSName, req.OSVersion, req.OSBuild)
-			activities = append(activities, ActivityEntry{
-				DeviceID: deviceID, ActivityType: "os_updated",
-				Description: fmt.Sprintf("Sistema operacional atualizado de '%s' para '%s'", oldVer, newVer),
-				OldValue:    strPtr(oldVer), NewValue: strPtr(newVer),
-			})
-		}
-
-		// 3. Reboot detection
-		if existing.LastBootTime != nil && req.LastBootTime != nil && !existing.LastBootTime.Equal(*req.LastBootTime) {
-			activities = append(activities, ActivityEntry{
-				DeviceID: deviceID, ActivityType: "boot",
-				Description: fmt.Sprintf("Dispositivo reiniciado (boot: %s)", req.LastBootTime.Format("02/01/2006 15:04")),
-				OldValue:    strPtr(existing.LastBootTime.Format("2006-01-02T15:04:05Z")),
-				NewValue:    strPtr(req.LastBootTime.Format("2006-01-02T15:04:05Z")),
-			})
-		}
-
-		// 4. Software changes — compare current vs incoming
+		// Software changes — compare current vs incoming
 		var currentSoftware []models.InstalledSoftware
 		if err := tx.SelectContext(ctx, &currentSoftware, "SELECT * FROM installed_software WHERE device_id = $1", deviceID); err != nil {
 			return fmt.Errorf("fetch existing software: %w", err)

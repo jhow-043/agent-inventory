@@ -143,7 +143,7 @@ export interface DeviceDetailResponse {
 export interface DeviceActivityLog {
   id: string;
   device_id: string;
-  activity_type: 'user_login' | 'software_installed' | 'software_removed' | 'os_updated' | 'boot' | 'hardware_changed';
+  activity_type: 'software_installed' | 'software_removed';
   description: string;
   old_value: string | null;
   new_value: string | null;

@@ -592,11 +592,6 @@ export default function DeviceDetail() {
 // ---------------------------------------------------------------------------
 
 const ACTIVITY_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  user_login: {
-    label: 'Login',
-    color: 'text-blue-500 bg-blue-500/10',
-    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>,
-  },
   software_installed: {
     label: 'Instalação',
     color: 'text-green-500 bg-green-500/10',
@@ -606,16 +601,6 @@ const ACTIVITY_CONFIG: Record<string, { icon: React.ReactNode; color: string; la
     label: 'Remoção',
     color: 'text-red-500 bg-red-500/10',
     icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" /></svg>,
-  },
-  os_updated: {
-    label: 'Atualização OS',
-    color: 'text-purple-500 bg-purple-500/10',
-    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" /></svg>,
-  },
-  boot: {
-    label: 'Reinício',
-    color: 'text-yellow-500 bg-yellow-500/10',
-    icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" /></svg>,
   },
 };
 
@@ -641,13 +626,7 @@ function ActivityRow({ activity }: { activity: DeviceActivityLog }) {
           </span>
         </div>
         <p className="text-sm text-text-primary mt-0.5">{activity.description}</p>
-        {(activity.old_value || activity.new_value) && activity.activity_type === 'user_login' && (
-          <div className="flex items-center gap-1.5 mt-1 text-xs text-text-muted">
-            {activity.old_value && <code className="bg-red-500/10 text-red-400 px-1 rounded">{activity.old_value}</code>}
-            {activity.old_value && activity.new_value && <span>→</span>}
-            {activity.new_value && <code className="bg-green-500/10 text-green-400 px-1 rounded">{activity.new_value}</code>}
-          </div>
-        )}
+
       </div>
     </div>
   );
