@@ -33,8 +33,8 @@ func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*m
 // Create inserts a new user into the database.
 func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	_, err := r.db.ExecContext(ctx,
-		"INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
-		user.ID, user.Username, user.PasswordHash, user.Role)
+		"INSERT INTO users (id, username, name, password_hash, role) VALUES ($1, $2, $3, $4, $5)",
+		user.ID, user.Username, user.Name, user.PasswordHash, user.Role)
 	return err
 }
 
@@ -61,11 +61,11 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Use
 	return &user, nil
 }
 
-// Update modifies a user's username, password_hash, and/or role.
-func (r *UserRepository) Update(ctx context.Context, id uuid.UUID, username, passwordHash, role string) error {
+// Update modifies a user's username, name, password_hash, and/or role.
+func (r *UserRepository) Update(ctx context.Context, id uuid.UUID, username, name, passwordHash, role string) error {
 	result, err := r.db.ExecContext(ctx,
-		"UPDATE users SET username = $1, password_hash = $2, role = $3, updated_at = NOW() WHERE id = $4",
-		username, passwordHash, role, id)
+		"UPDATE users SET username = $1, name = $2, password_hash = $3, role = $4, updated_at = NOW() WHERE id = $5",
+		username, name, passwordHash, role, id)
 	if err != nil {
 		return err
 	}

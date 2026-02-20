@@ -16,6 +16,19 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Filtro por componente no histórico de hardware (CPU, RAM, Placa-mãe, BIOS, Disco, Rede)
 - Paginação no endpoint `GET /devices/:id/hardware-history` com suporte a `?component=&page=&limit=`
 - Migration 008 — colunas `component`, `change_type`, `field`, `old_value`, `new_value` em `hardware_history`
+- **Log de atividades do device** — rastreamento de login, boot, atualização de OS, software instalado/removido
+- Migration 007 — tabela `device_activity_log` com 3 índices
+- **Cleanup service** — serviço em background que purga logs antigos, marca devices inativos e executa VACUUM
+- Variáveis de ambiente configuráveis: `RETENTION_DAYS`, `INACTIVE_DAYS`, `CLEANUP_INTERVAL`
+- Migration 009 — limpeza de registros órfãos + NOT NULL em `hardware_history`
+
+### Melhorado
+- Chave de comparação de discos usa composite key (`model+size+type`) quando serial está vazio, evitando colisões
+- Lógica de diff de hardware extraída para `hardware_diff.go` (inventory.go: 495 → 308 linhas)
+- CSP `connect-src` agora é dinâmico, derivado de `CORS_ORIGINS` (sem IP hardcoded)
+- `formatBytesGo(0)` retorna `"N/A"` em vez de `"0 B"`
+- `.env.example` atualizado com todas as variáveis documentadas
+- Documentação atualizada para v1.1.0
 
 ## [1.0.0] - 2026-02-18
 

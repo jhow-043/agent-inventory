@@ -6,7 +6,7 @@ O sistema usa PostgreSQL com o driver `pgx` (nativo Go, sem libpq). Conexão via
 
 ## Migrações
 
-6 migrações SQL executadas automaticamente no startup da API via `golang-migrate`. Os arquivos `.sql` são embedados no binário com `embed.FS`.
+9 migrações SQL executadas automaticamente no startup da API via `golang-migrate`. Os arquivos `.sql` são embedados no binário com `embed.FS`.
 
 | # | Arquivo | O que faz |
 |---|---------|-----------|
@@ -16,6 +16,9 @@ O sistema usa PostgreSQL com o driver `pgx` (nativo Go, sem libpq). Conexão via
 | 004 | `004_lifecycle` | Tabelas departments e hardware_history. Adiciona status e department_id em devices |
 | 005 | `005_add_user_roles` | Adiciona coluna role em users (admin/viewer), atualiza existentes para admin |
 | 006 | `006_add_audit_logs` | Tabela audit_logs com 5 índices |
+| 007 | `007_device_activity_log` | Tabela device_activity_log para rastreamento de atividades (login, boot, software, OS) |
+| 008 | `008_hardware_history_details` | Adiciona colunas component, change_type, field, old_value, new_value em hardware_history |
+| 009 | `009_cleanup_orphan_history` | Remove registros órfãos de hardware_history, adiciona NOT NULL em component e change_type |
 
 Cada migração tem um arquivo `.up.sql` (aplica) e `.down.sql` (reverte).
 
@@ -228,31 +231,65 @@ CREATE TABLE departments (
 
 ### hardware_history
 
-Snapshots de mudanças de hardware. Quando o agent reporta hardware diferente do atual, o sistema salva o estado anterior como snapshot JSONB.
+Histórico granular de mudanças de hardware. Cada alteração de campo gera um registro individual com o componente, tipo de mudança, campo alterado e valores antigo/novo. O snapshot JSONB preserva o estado anterior completo para compatibilidade.
 
 ```sql
 CREATE TABLE hardware_history (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    device_id  UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
-    snapshot   JSONB NOT NULL,
-    changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    device_id   UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+    snapshot    JSONB NOT NULL,
+    component   TEXT NOT NULL,         -- migração 008: cpu, ram, motherboard, bios, disk, network
+    change_type TEXT NOT NULL,         -- migração 008: changed, added, removed
+    field       TEXT DEFAULT '',       -- migração 008: model, cores, size_bytes, etc.
+    old_value   TEXT DEFAULT '',       -- migração 008
+    new_value   TEXT DEFAULT '',       -- migração 008
+    changed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_hw_history_device ON hardware_history(device_id);
 ```
 
-- `snapshot`: JSON completo do hardware anterior (CPU, RAM, mobo, BIOS)
-- Exemplo de snapshot:
-  ```json
-  {
-    "cpu_model": "Intel Core i5-10400",
-    "cpu_cores": 6,
-    "cpu_threads": 12,
-    "ram_total_bytes": 8589934592,
-    "motherboard_manufacturer": "ASRock",
-    "motherboard_product": "B460M Pro4"
-  }
-  ```
+- `component`: identifica a categoria (cpu, ram, motherboard, bios, disk, network)
+- `change_type`: tipo da mudança (changed, added, removed)
+- `field`: campo específico que mudou (ex: model, cores, total_bytes, size_bytes)
+- `old_value` / `new_value`: valores legíveis (ex: "8.0 GB" → "16.0 GB")
+- `snapshot`: JSON completo do hardware anterior para compatibilidade
+
+Exemplo de registro:
+```json
+{
+  "component": "ram",
+  "change_type": "changed",
+  "field": "total_bytes",
+  "old_value": "8.0 GB",
+  "new_value": "16.0 GB"
+}
+```
+
+### device_activity_log
+
+Log de atividades detectadas nos dispositivos (login de usuário, reinício, atualização de OS, instalação/remoção de software).
+
+```sql
+CREATE TABLE device_activity_log (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    device_id     UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+    activity_type VARCHAR(50) NOT NULL,
+    description   TEXT NOT NULL DEFAULT '',
+    old_value     TEXT,
+    new_value     TEXT,
+    metadata      JSONB,
+    detected_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_device_activity_device ON device_activity_log(device_id);
+CREATE INDEX idx_device_activity_type   ON device_activity_log(activity_type);
+CREATE INDEX idx_device_activity_time   ON device_activity_log(detected_at DESC);
+```
+
+- `activity_type`: user_login, boot, os_updated, software_installed, software_removed
+- `metadata`: JSON opcional com detalhes extras (ex: nome/versão/vendor de software)
+- Registros gerados automaticamente durante o processamento de inventário
 
 ### audit_logs
 
@@ -312,12 +349,13 @@ departments
           ├────< network_interfaces (1:N, CASCADE)
           ├────< installed_software (1:N, CASCADE)
           ├────< remote_tools       (1:N, CASCADE)
-          └────< hardware_history   (1:N, CASCADE)
+          ├────< hardware_history      (1:N, CASCADE)
+          └────< device_activity_log   (1:N, CASCADE)
 ```
 
 Todas as tabelas filhas de `devices` usam CASCADE delete — ao deletar um device, todos os dados relacionados são removidos automaticamente.
 
-## Índices (16 total)
+## Índices (19 total)
 
 | Tabela | Índice | Colunas |
 |--------|--------|---------|
@@ -337,6 +375,9 @@ Todas as tabelas filhas de `devices` usam CASCADE delete — ao deletar um devic
 | audit_logs | `idx_audit_logs_created_at` | created_at DESC |
 | audit_logs | `idx_audit_logs_resource` | resource_type, resource_id |
 | audit_logs | `idx_audit_logs_composite` | user_id, created_at DESC |
+| device_activity_log | `idx_device_activity_device` | device_id |
+| device_activity_log | `idx_device_activity_type` | activity_type |
+| device_activity_log | `idx_device_activity_time` | detected_at DESC |
 
 ## Estratégia de Atualização de Dados
 

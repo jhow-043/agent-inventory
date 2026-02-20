@@ -26,7 +26,7 @@ services:
       dockerfile: server/Dockerfile
     container_name: inventory-api
     ports:
-      - "${SERVER_PORT:-8080}:8080"
+      - "192.168.30.56:${SERVER_PORT:-8080}:8080"
     environment:
       DATABASE_URL: postgres://inventory:${POSTGRES_PASSWORD:-changeme}@postgres:5432/inventory?sslmode=disable
       SERVER_PORT: "8080"

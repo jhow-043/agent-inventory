@@ -49,7 +49,7 @@ function formatDate(dateStr: string): string {
   });
 }
 
-export default function AuditLogs() {
+export default function AuditLogs({ embedded }: { embedded?: boolean }) {
   const [page, setPage] = useState(1);
   const [actionFilter, setActionFilter] = useState('');
   const [resourceFilter, setResourceFilter] = useState('');
@@ -72,8 +72,8 @@ export default function AuditLogs() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="animate-fade-in">
-      <PageHeader title="Audit Logs" subtitle={`${total} registros`} />
+    <div className={embedded ? '' : 'animate-fade-in'}>
+      {!embedded && <PageHeader title="Audit Logs" subtitle={`${total} registros`} />}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">

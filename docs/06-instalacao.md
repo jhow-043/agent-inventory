@@ -33,7 +33,13 @@ JWT_SECRET=gerar-uma-string-aleatoria-de-32-chars-minimo
 ENROLLMENT_KEY=uma-chave-secreta-para-agents
 
 # Origens permitidas pelo CORS (separadas por vírgula)
-CORS_ORIGINS=http://localhost:3000
+# Para acesso na rede local, adicione http://<SEU-IP>:5173
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+
+# Cleanup automático (opcional)
+RETENTION_DAYS=90         # Dias para reter logs
+INACTIVE_DAYS=30          # Dias sem comunicação → dispositivo inativo
+CLEANUP_INTERVAL=24h      # Intervalo entre execuções
 ```
 
 ### 2. Subir os serviços

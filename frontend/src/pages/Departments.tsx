@@ -5,12 +5,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from '../api/departments';
 import { getDevices } from '../api/devices';
+import { useAuth } from '../hooks/useAuth';
 import { PageHeader, Button, Input, Modal, Badge } from '../components/ui';
 import { useToast } from '../hooks/useToast';
 
 export default function Departments() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { role } = useAuth();
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -81,22 +83,24 @@ export default function Departments() {
       <PageHeader title="Departments" subtitle={`${departments.length} departments`} />
 
       {/* Create form */}
-      <form onSubmit={handleCreate} className="flex gap-3 mb-6">
-        <div className="w-full sm:w-64">
-          <Input
-            placeholder="New department name..."
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-          />
-        </div>
-        <Button
-          type="submit"
-          disabled={createMut.isPending || !newName.trim()}
-          loading={createMut.isPending}
-        >
-          Add
-        </Button>
-      </form>
+      {role === 'admin' && (
+        <form onSubmit={handleCreate} className="flex gap-3 mb-6">
+          <div className="w-full sm:w-64">
+            <Input
+              placeholder="New department name..."
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={createMut.isPending || !newName.trim()}
+            loading={createMut.isPending}
+          >
+            Add
+          </Button>
+        </form>
+      )}
 
       {error && <p className="text-danger mb-4">Failed to load departments.</p>}
 
@@ -121,7 +125,9 @@ export default function Departments() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Name</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Devices</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider">Created</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-text-muted uppercase tracking-wider">Actions</th>
+                {role === 'admin' && (
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-text-muted uppercase tracking-wider">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-primary">
@@ -152,27 +158,29 @@ export default function Departments() {
                   <td className="px-4 py-3 text-sm text-text-muted">
                     {new Date(d.created_at).toLocaleDateString()}
                   </td>
-                  <td className="px-4 py-3 text-sm text-right">
-                    {editingId === d.id ? (
-                      <div className="flex justify-end gap-2">
-                        <Button variant="success" size="sm" onClick={() => handleUpdate(d.id)} loading={updateMut.isPending}>
-                          Save
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
-                          Cancel
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => startEdit(d.id, d.name)}>
-                          Edit
-                        </Button>
-                        <Button variant="danger" size="sm" onClick={() => setDeleteTarget({ id: d.id, name: d.name })}>
-                          Delete
-                        </Button>
-                      </div>
-                    )}
-                  </td>
+                  {role === 'admin' && (
+                    <td className="px-4 py-3 text-sm text-right">
+                      {editingId === d.id ? (
+                        <div className="flex justify-end gap-2">
+                          <Button variant="success" size="sm" onClick={() => handleUpdate(d.id)} loading={updateMut.isPending}>
+                            Save
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => startEdit(d.id, d.name)}>
+                            Edit
+                          </Button>
+                          <Button variant="danger" size="sm" onClick={() => setDeleteTarget({ id: d.id, name: d.name })}>
+                            Delete
+                          </Button>
+                        </div>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

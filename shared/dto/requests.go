@@ -90,6 +90,7 @@ type LoginRequest struct {
 // CreateUserRequest is used to create a new dashboard user.
 type CreateUserRequest struct {
 	Username string `json:"username" binding:"required,min=3,max=100"`
+	Name     string `json:"name" binding:"required,max=255"`
 	Password string `json:"password" binding:"required,min=8,max=100"`
 	Role     string `json:"role" binding:"omitempty,oneof=admin viewer"`
 }
@@ -97,6 +98,7 @@ type CreateUserRequest struct {
 // UpdateUserRequest is used to update a dashboard user's info.
 type UpdateUserRequest struct {
 	Username string `json:"username" binding:"omitempty,min=3,max=100"`
+	Name     string `json:"name" binding:"omitempty,max=255"`
 	Password string `json:"password" binding:"omitempty,min=8,max=100"`
 	Role     string `json:"role" binding:"omitempty,oneof=admin viewer"`
 }

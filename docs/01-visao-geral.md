@@ -22,7 +22,7 @@ O sistema tem 3 partes que se comunicam:
                              ┌────────┴─────────┐
                              │  Frontend (React) │
                              │  SPA no browser   │
-                             │  Vite dev :3000    │
+                             │  Vite dev :5173    │
                              └──────────────────┘
 ```
 
@@ -30,7 +30,7 @@ O sistema tem 3 partes que se comunicam:
 |------------|-----------|-----------|--------|
 | API | Go 1.24 + Gin | `server/` | Recebe dados, serve API REST, autenticação |
 | Agent | Go 1.24 + WMI | `agent/` | Coleta inventário Windows e envia pra API |
-| Frontend | React 18 + TypeScript | `frontend/` | Dashboard web, gestão de devices |
+| Frontend | React 19 + TypeScript | `frontend/` | Dashboard web, gestão de devices |
 | Shared | Go | `shared/` | Models e DTOs compartilhados entre server e agent |
 
 ## Stack Completa
@@ -39,7 +39,7 @@ O sistema tem 3 partes que se comunicam:
 
 **Agent:** Go 1.24, go-ole/WMI, golang.org/x/sys (Windows Service)
 
-**Frontend:** React 18, TypeScript, Vite, TailwindCSS, TanStack Query, Recharts, React Router v6, Lucide icons
+**Frontend:** React 19, TypeScript, Vite 7, TailwindCSS, TanStack Query, Recharts, React Router v6, Lucide icons
 
 **Banco:** PostgreSQL 16
 
@@ -88,7 +88,7 @@ Agent                              API
   │                                 │
   │                                 │ Transação no banco:
   │                                 │   1. Upsert device (hostname, OS, last_seen)
-  │                                 │   2. Compara hardware → se mudou, salva snapshot
+  │                                 │   2. Compara hardware granular → salva mudanças campo a campo
   │                                 │   3. Upsert hardware (CPU, RAM, BIOS, mobo)
   │                                 │   4. Replace disks (delete + insert)
   │                                 │   5. Replace network interfaces
@@ -189,7 +189,7 @@ O role é verificado pelo middleware `RequireRole` que lê o campo `role` do JWT
 | JWT | HMAC-SHA256, cookie httpOnly/SameSite (sem acesso via JS) |
 | Rate limiting | Enrollment: 10/min por IP, Login: 5/min por IP |
 | RBAC | Middleware `RequireRole` em rotas admin |
-| Security headers | X-Frame-Options: DENY, CSP, X-Content-Type-Options, etc. |
+| Security headers | X-Frame-Options: DENY, CSP dinâmico (connect-src via CORS_ORIGINS), X-Content-Type-Options, etc. |
 | Audit log | Toda ação admin é registrada com user, IP, detalhes |
 | Request ID | UUID por request para rastreabilidade nos logs |
 | CORS | Whitelist de origens configurável |

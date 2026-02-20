@@ -173,7 +173,7 @@ func runCreateUser() {
 	tokenRepo := repository.NewTokenRepository(db)
 	authSvc := service.NewAuthService(db, userRepo, tokenRepo, cfg.JWTSecret)
 
-	if err := authSvc.CreateUser(context.Background(), username, password, role); err != nil {
+	if err := authSvc.CreateUser(context.Background(), username, username, password, role); err != nil {
 		slog.Error("failed to create user", "error", err)
 		db.Close()
 		os.Exit(1)

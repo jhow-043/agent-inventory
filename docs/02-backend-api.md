@@ -13,6 +13,10 @@ server/
 │   ├── middleware/            # Middlewares (auth, cors, rate limit, etc.)
 │   ├── migrations/            # SQL migrations (embedded)
 │   ├── repository/            # Queries SQL (sqlx)
+│   │   ├── inventory.go       # Upsert transacional de inventário
+│   │   ├── hardware_diff.go   # Comparação granular de hardware
+│   │   ├── cleanup.go         # Purge, inativos, vacuum
+│   │   └── ...
 │   ├── router/router.go       # Definição de todas as rotas
 │   └── service/               # Lógica de negócio
 └── Dockerfile                 # Multi-stage build
@@ -29,8 +33,9 @@ O `main.go` faz na ordem:
 5. Roda migrações automaticamente (embedded SQL)
 6. Cria repositórios → services → handlers
 7. Configura rotas
-8. Starta HTTP server com timeouts (read: 15s, write: 30s, idle: 60s)
-9. Graceful shutdown em SIGINT/SIGTERM (10s timeout)
+8. Inicia cleanup service (background: purge de logs, marcação de inativos)
+9. Starta HTTP server com timeouts (read: 15s, write: 30s, idle: 60s)
+10. Graceful shutdown em SIGINT/SIGTERM (cleanup service + HTTP server, 10s timeout)
 
 ## Configuração
 
@@ -42,6 +47,9 @@ O `main.go` faz na ordem:
 | `JWT_SECRET` | **Sim** | — | Chave para assinar JWT (min 32 chars recomendado) |
 | `ENROLLMENT_KEY` | **Sim** | — | Chave que os agents usam para se registrar |
 | `CORS_ORIGINS` | Não | `http://localhost:3000` | Origens permitidas, separadas por vírgula |
+| `RETENTION_DAYS` | Não | `90` | Dias para reter logs (audit, activity, hardware_history) |
+| `INACTIVE_DAYS` | Não | `30` | Dias sem comunicação para marcar device como inativo |
+| `CLEANUP_INTERVAL` | Não | `24h` | Intervalo entre execuções do cleanup automático |
 
 Se `JWT_SECRET` ou `ENROLLMENT_KEY` estiverem vazias, o servidor recusa iniciar (`os.Exit(1)`).
 
@@ -113,7 +121,7 @@ Nível de log: Info para 2xx/3xx, Warn para 4xx, Error para 5xx.
 
 ### Security Headers
 
-Headers fixos em toda resposta:
+Headers de segurança em toda resposta. O `connect-src` do CSP é construído dinamicamente a partir do `CORS_ORIGINS`:
 
 ```
 X-Content-Type-Options: nosniff
@@ -230,10 +238,12 @@ Este é o handler mais complexo. Ocorre numa **transação única**:
    INSERT ... ON CONFLICT (id) DO UPDATE
    Atualiza: hostname, OS, agent_version, license_status, last_seen, logged_user
 
-2. Detecção de Mudanças de Hardware
-   SELECT hardware atual do banco
-   Compara com hardware recebido (CPU, RAM, placa-mãe, BIOS)
-   Se mudou → salva snapshot JSONB em hardware_history
+2. Detecção Granular de Mudanças de Hardware
+   SELECT hardware atual + discos + NICs do banco
+   Compara campo a campo (CPU, RAM, placa-mãe, BIOS)
+   Compara discos por serial (fallback: model+size+type)
+   Compara NICs por MAC address (fallback: nome)
+   Cada mudança → INSERT individual em hardware_history com component/field/old/new
 
 3. Upsert Hardware
    INSERT ... ON CONFLICT (device_id) DO UPDATE
@@ -306,7 +316,7 @@ Chamada única retorna o device completo com todos os dados relacionados: hardwa
 
 ### Histórico de Hardware
 
-Retorna lista de snapshots JSONB com as mudanças detectadas ao longo do tempo (ex: RAM mudou de 8GB para 16GB).
+Retorna histórico granular de mudanças de hardware, filtrado por componente (cpu, ram, motherboard, bios, disk, network). Cada registro inclui: component, change_type (added/removed/changed), field, old_value, new_value e snapshot JSONB do estado anterior. Suporta paginação (limit/offset).
 
 ## CLI — Criar Usuário
 

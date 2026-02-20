@@ -35,15 +35,6 @@ const navItems = [
     ),
   },
   {
-    to: '/audit-logs',
-    label: 'Audit Logs',
-    icon: (
-      <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  },
-  {
     to: '/settings',
     label: 'Settings',
     icon: (
@@ -93,7 +84,7 @@ export default function Layout() {
   };
 
   // Hide Settings from viewers
-  const filteredNavItems = role === 'admin' ? navItems : navItems.filter((item) => !['/settings', '/audit-logs'].includes(item.to));
+  const filteredNavItems = role === 'admin' ? navItems : navItems.filter((item) => !['/settings'].includes(item.to));
 
   return (
     <div className="flex h-screen overflow-hidden">

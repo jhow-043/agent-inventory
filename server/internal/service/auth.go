@@ -121,7 +121,7 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (string,
 }
 
 // CreateUser creates a new dashboard user with a bcrypt-hashed password.
-func (s *AuthService) CreateUser(ctx context.Context, username, password, role string) error {
+func (s *AuthService) CreateUser(ctx context.Context, username, name, password, role string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
@@ -140,6 +140,7 @@ func (s *AuthService) CreateUser(ctx context.Context, username, password, role s
 	user := &models.User{
 		ID:           uuid.New(),
 		Username:     username,
+		Name:         name,
 		PasswordHash: string(hash),
 		Role:         role,
 	}
@@ -149,7 +150,7 @@ func (s *AuthService) CreateUser(ctx context.Context, username, password, role s
 
 // UpdateUser updates a dashboard user's info. Only non-empty fields are applied.
 // Prevents a user from changing their own role (to avoid admin lock-out).
-func (s *AuthService) UpdateUser(ctx context.Context, requestingUserID, targetUserID uuid.UUID, username, password, role string) error {
+func (s *AuthService) UpdateUser(ctx context.Context, requestingUserID, targetUserID uuid.UUID, username, name, password, role string) error {
 	// Fetch existing user.
 	user, err := s.userRepo.GetByID(ctx, targetUserID)
 	if err != nil {
@@ -159,6 +160,9 @@ func (s *AuthService) UpdateUser(ctx context.Context, requestingUserID, targetUs
 	// Apply only non-empty fields.
 	if username != "" {
 		user.Username = username
+	}
+	if name != "" {
+		user.Name = name
 	}
 	if password != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
@@ -178,7 +182,7 @@ func (s *AuthService) UpdateUser(ctx context.Context, requestingUserID, targetUs
 		user.Role = role
 	}
 
-	return s.userRepo.Update(ctx, targetUserID, user.Username, user.PasswordHash, user.Role)
+	return s.userRepo.Update(ctx, targetUserID, user.Username, user.Name, user.PasswordHash, user.Role)
 }
 
 // ListUsers returns all dashboard users.

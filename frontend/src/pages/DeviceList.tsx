@@ -28,7 +28,7 @@ export default function DeviceList() {
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkModal, setBulkModal] = useState<'delete' | 'deactivate' | 'department' | null>(null);
+  const [bulkModal, setBulkModal] = useState<'delete' | 'deactivate' | 'activate' | 'department' | null>(null);
   const [bulkDeptId, setBulkDeptId] = useState('');
 
   const debouncedHostname = useDebounce(hostname, 300);
@@ -222,6 +222,18 @@ export default function DeviceList() {
             Set Department
           </Button>
           <Button
+            variant="success"
+            size="sm"
+            onClick={() => setBulkModal('activate')}
+            icon={
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+          >
+            Activate
+          </Button>
+          <Button
             variant="secondary"
             size="sm"
             onClick={() => setBulkModal('deactivate')}
@@ -279,6 +291,35 @@ export default function DeviceList() {
         <p className="text-sm text-text-secondary">
           Are you sure you want to permanently delete <strong className="text-text-primary">{selectionCount} device(s)</strong>?
           All related data will be removed. This action cannot be undone.
+        </p>
+      </Modal>
+
+      <Modal
+        open={bulkModal === 'activate'}
+        onClose={() => setBulkModal(null)}
+        title="Activate Devices"
+        actions={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setBulkModal(null)}>Cancel</Button>
+            <Button
+              variant="success"
+              size="sm"
+              onClick={() => bulkStatusMutation.mutate('active')}
+              loading={bulkStatusMutation.isPending}
+              icon={
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+            >
+              Activate {selectionCount} device(s)
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-text-secondary">
+          This will mark <strong className="text-text-primary">{selectionCount} device(s)</strong> as active.
+          They will appear in the default device list.
         </p>
       </Modal>
 

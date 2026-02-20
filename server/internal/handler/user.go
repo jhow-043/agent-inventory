@@ -40,6 +40,7 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 		resp.Users = append(resp.Users, dto.UserResponse{
 			ID:        u.ID,
 			Username:  u.Username,
+			Name:      u.Name,
 			Role:      u.Role,
 			CreatedAt: u.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		})
@@ -62,13 +63,13 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		role = "viewer"
 	}
 
-	if err := h.authService.CreateUser(c.Request.Context(), req.Username, req.Password, role); err != nil {
+	if err := h.authService.CreateUser(c.Request.Context(), req.Username, req.Name, req.Password, role); err != nil {
 		slog.Error("failed to create user", "error", err)
 		c.JSON(http.StatusConflict, dto.ErrorResponse{Error: "username already exists or invalid role"})
 		return
 	}
 
-	h.auditLogger.Log(c, "user.create", "user", nil, map[string]interface{}{"username": req.Username, "role": role})
+	h.auditLogger.Log(c, "user.create", "user", nil, map[string]interface{}{"username": req.Username, "name": req.Name, "role": role})
 	c.JSON(http.StatusCreated, dto.MessageResponse{Message: "user created successfully"})
 }
 
@@ -86,7 +87,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if req.Username == "" && req.Password == "" && req.Role == "" {
+	if req.Username == "" && req.Name == "" && req.Password == "" && req.Role == "" {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "at least one field must be provided"})
 		return
 	}
@@ -98,7 +99,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.UpdateUser(c.Request.Context(), requestingUserID, targetID, req.Username, req.Password, req.Role); err != nil {
+	if err := h.authService.UpdateUser(c.Request.Context(), requestingUserID, targetID, req.Username, req.Name, req.Password, req.Role); err != nil {
 		slog.Error("failed to update user", "error", err, "target_id", targetID)
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
 		return

@@ -34,7 +34,7 @@ func Setup(
 	r.Use(gin.Recovery())
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Logging())
-	r.Use(middleware.SecurityHeaders())
+	r.Use(middleware.SecurityHeaders(cfg.CORSOrigins))
 	r.Use(middleware.CORS(cfg.CORSOrigins))
 
 	// Health probes — no authentication required.

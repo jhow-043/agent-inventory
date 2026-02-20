@@ -64,6 +64,7 @@ type RecentDevice struct {
 type UserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Username  string    `json:"username"`
+	Name      string    `json:"name"`
 	Role      string    `json:"role"`
 	CreatedAt string    `json:"created_at"`
 }
