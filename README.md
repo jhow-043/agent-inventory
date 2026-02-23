@@ -1,6 +1,6 @@
 # Inventory System
 
-**Versão:** 1.1.0 | **Atualizado:** 20/02/2026
+**Versão:** 1.2.0 | **Atualizado:** 23/02/2026
 
 Sistema de inventário automatizado de hardware e software para estações Windows.
 Um agente Windows coleta informações via WMI/Registry e envia para uma API centralizada, que alimenta um dashboard web com tema dark/light e gráficos analíticos.
@@ -16,8 +16,9 @@ Um agente Windows coleta informações via WMI/Registry e envia para uma API cen
 5. [API Endpoints](#api-endpoints)
 6. [Dados Coletados pelo Agent](#dados-coletados-pelo-agent)
 7. [Database Schema](#database-schema)
-8. [Variáveis de Ambiente](#variáveis-de-ambiente)
-9. [Makefile](#makefile)
+8. [Segurança](#segurança)
+9. [Variáveis de Ambiente](#variáveis-de-ambiente)
+10. [Makefile](#makefile)
 
 ---
 
@@ -31,9 +32,9 @@ Um agente Windows coleta informações via WMI/Registry e envia para uma API cen
 │  │  Estação #1  │──┐                                                     │
 │  │  Agent.exe   │  │     HTTP/JSON                ┌──────────────────┐   │
 │  └──────────────┘  │  ┌─────────────────────┐     │                  │   │
-│  ┌──────────────┐  ├─►│    API Server       │     │  PostgreSQL 16   │   │
+│  ┌──────────────┐  ├─►│    API Server       │     │  PostgreSQL 17   │   │
 │  │  Estação #2  │──┤  │    Go 1.24 + Gin    │────►│                  │   │
-│  │  Agent.exe   │  │  │    Port <sua porta> │     │  12 tabelas      │   │
+│  │  Agent.exe   │  │  │    Port 8081        │     │  12 tabelas      │   │
 │  └──────────────┘  │  └─────────┬───────────┘     │  10 migrations   │   │
 │  ┌──────────────┐  │            │                 │                  │   │
 │  │  Estação #N  │──┘            │                 └──────────────────┘   │
@@ -58,7 +59,7 @@ Um agente Windows coleta informações via WMI/Registry e envia para uma API cen
 | **API** | Go, Gin, sqlx, pgx v5, golang-migrate, JWT HS256 | Go 1.24 |
 | **Agent** | Go, WMI, Windows Service (`x/sys/windows/svc`) | Go 1.24 |
 | **Frontend** | React, TypeScript, Vite, Tailwind CSS, TanStack Query, Recharts | React 19, Vite 7, Tailwind 4 |
-| **Database** | PostgreSQL | 16-alpine |
+| **Database** | PostgreSQL | 17-alpine |
 | **Deploy** | Docker Compose | — |
 | **Linting** | golangci-lint, ESLint | — |
 
@@ -72,14 +73,14 @@ Inventario/
 ├── go.work                            # Go workspace (shared + server + agent)
 │
 ├── server/                            # ── API REST (Go) ──
-│   ├── Dockerfile                     # Multi-stage: golang:1.24-alpine → alpine:3.20
+│   ├── Dockerfile                     # Multi-stage: golang:1.24-alpine → alpine:3.21
 │   ├── cmd/api/main.go                # Entry point + CLI create-user
 │   ├── internal/
-│   │   ├── config/config.go           # Env vars loader
+│   │   ├── config/config.go           # Env vars loader + validação
 │   │   ├── database/database.go       # Connect + pool + migrations
 │   │   ├── handler/                   # Controladores HTTP
 │   │   │   ├── auth.go                # Enroll, Login, Logout, Me
-│   │   │   ├── device.go              # ListDevices, GetDevice, ExportCSV, HardwareHistory, UpdateStatus, UpdateDepartment
+│   │   │   ├── device.go              # CRUD devices, bulk ops, export, history
 │   │   │   ├── department.go          # CRUD departamentos
 │   │   │   ├── dashboard.go           # GetStats
 │   │   │   ├── user.go                # CRUD usuários
@@ -90,6 +91,7 @@ Inventario/
 │   │   │   ├── auth.go                # DeviceAuth (Bearer) + JWTAuth (cookie)
 │   │   │   ├── rbac.go                # RequireRole("admin")
 │   │   │   ├── ratelimit.go           # Rate limiting por IP
+│   │   │   ├── bodylimit.go           # Limite body 10MB (anti-OOM)
 │   │   │   ├── security.go            # Security headers (CSP, X-Frame-Options)
 │   │   │   ├── audit.go               # Audit logger
 │   │   │   ├── cors.go                # CORS whitelist
@@ -101,7 +103,7 @@ Inventario/
 │   │   │   ├── hardware_diff.go       # Diff detalhado de alterações de hardware
 │   │   │   ├── department.go          # CRUD departamentos
 │   │   │   ├── dashboard.go           # COUNT queries
-│   │   │   ├── user.go                # CRUD usuários
+│   │   │   ├── user.go                # CRUD usuários (SELECT explícito)
 │   │   │   ├── token.go               # SHA-256 token lookup
 │   │   │   ├── audit.go               # Audit logs
 │   │   │   ├── device_activity.go     # Log de atividades do device
@@ -130,10 +132,10 @@ Inventario/
 │   ├── config.example.json            # Template config.json
 │   ├── cmd/agent/main.go              # Service + CLI (run/collect/install/start/stop/uninstall/version)
 │   └── internal/
-│       ├── client/client.go           # HTTP client com retry + backoff exponencial
+│       ├── client/client.go           # HTTP client com retry + backoff exponencial + response limit 1MB
 │       ├── collector/                 # Coletores WMI + Registry
 │       │   ├── collector.go           # Orquestrador
-│       │   ├── system.go              # OS, hostname, serial, usuário logado
+│       │   ├── system.go              # OS, hostname, serial, usuário logado (non-fatal)
 │       │   ├── hardware.go            # CPU, RAM, motherboard, BIOS
 │       │   ├── disk.go                # Discos + partições + espaço livre
 │       │   ├── network.go             # Interfaces de rede (físicas + IPs)
@@ -146,14 +148,14 @@ Inventario/
 ├── shared/                            # ── MÓDULO COMPARTILHADO ──
 │   ├── models/models.go              # Entidades DB
 │   └── dto/                           # Request/Response DTOs
-│       ├── requests.go
+│       ├── requests.go                # Validação: max password, max bulk, etc.
 │       └── responses.go
 │
 ├── frontend/                          # ── DASHBOARD WEB (React) ──
 │   ├── vite.config.ts                 # Proxy /api → API server
 │   └── src/
 │       ├── api/                       # HTTP client + endpoints
-│       │   ├── client.ts              # Fetch wrapper, auto-redirect 401
+│       │   ├── client.ts              # Fetch wrapper, auto-redirect 401, 204 handling
 │       │   ├── auth.ts, devices.ts, departments.ts, dashboard.ts
 │       │   ├── users.ts, audit.ts
 │       ├── components/
@@ -193,9 +195,12 @@ Inventario/
 cp .env.example .env
 ```
 
-Edite o `.env` com suas configurações. As variáveis obrigatórias são `JWT_SECRET` (mínimo 32 caracteres) e `ENROLLMENT_KEY`. Defina `SERVER_PORT` com a porta desejada para a API (sugestão: `8081`).
+Edite o `.env` com suas configurações:
+- **`JWT_SECRET`** (obrigatório, mínimo 32 caracteres) — se menor, o servidor recusa iniciar
+- **`ENROLLMENT_KEY`** (obrigatório) — chave que os agents usam para se registrar
+- **`SERVER_PORT`** — porta da API (padrão: `8081`)
 
-Para rodar em um IP específico da rede, edite o `docker-compose.yml` e o `vite.config.ts` com o IP da sua máquina. Veja a seção [Variáveis de Ambiente](#variáveis-de-ambiente).
+Para rodar em um IP específico da rede, edite o `docker-compose.yml` e o `vite.config.ts` com o IP da sua máquina.
 
 ### 3. Subir o Backend
 
@@ -244,13 +249,11 @@ go build -o inventory-agent.exe ./cmd/agent
 **Config do agent (`config.json`):**
 ```json
 {
-  "server_url": "http://<IP_DO_SERVIDOR>:<PORTA_DA_API>",
+  "server_url": "http://<IP_DO_SERVIDOR>:8081",
   "enrollment_key": "mesma-chave-do-env",
   "interval_hours": 1
 }
 ```
-
-> **Dica:** Use o IP da máquina onde a API está rodando e a porta definida em `SERVER_PORT` no `.env` (sugestão: `8081`).
 
 ---
 
@@ -261,13 +264,14 @@ go build -o inventory-agent.exe ./cmd/agent
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/healthz` | Liveness probe |
+| `HEAD` | `/healthz` | Liveness probe (HEAD) |
 | `GET` | `/readyz` | Readiness probe (testa conexão DB) |
 
 ### Agent (auth própria)
 
 | Método | Rota | Auth | Descrição |
 |---|---|---|---|
-| `POST` | `/api/v1/enroll` | Header `X-Enrollment-Key` | Registra dispositivo, retorna token |
+| `POST` | `/api/v1/enroll` | Header `X-Enrollment-Key` | Registra dispositivo, retorna token (rate limit: 10/min) |
 | `POST` | `/api/v1/inventory` | Bearer Token (device) | Envia inventário completo |
 
 ### Dashboard — Leitura (JWT: qualquer role)
@@ -278,10 +282,11 @@ go build -o inventory-agent.exe ./cmd/agent
 | `GET` | `/api/v1/auth/me` | Dados do usuário logado (id, username, role) |
 | `POST` | `/api/v1/auth/logout` | Logout (limpa cookie) |
 | `GET` | `/api/v1/dashboard/stats` | Estatísticas: total, online, offline, inactive |
-| `GET` | `/api/v1/devices` | Listar dispositivos (filtros, paginação, sort) |
+| `GET` | `/api/v1/devices` | Listar dispositivos (filtros, paginação, sort, max 200/página) |
 | `GET` | `/api/v1/devices/export` | Exportar CSV |
 | `GET` | `/api/v1/devices/:id` | Detalhe completo do dispositivo |
 | `GET` | `/api/v1/devices/:id/hardware-history` | Histórico de mudanças de hardware |
+| `GET` | `/api/v1/devices/:id/activity` | Log de atividades do dispositivo |
 | `GET` | `/api/v1/departments` | Listar departamentos |
 | `GET` | `/api/v1/users` | Listar usuários |
 
@@ -291,10 +296,15 @@ go build -o inventory-agent.exe ./cmd/agent
 |---|---|---|
 | `PATCH` | `/api/v1/devices/:id/status` | Alterar status (active/inactive) |
 | `PATCH` | `/api/v1/devices/:id/department` | Atribuir departamento |
+| `DELETE` | `/api/v1/devices/:id` | Excluir dispositivo |
+| `PATCH` | `/api/v1/devices/bulk/status` | Alterar status em lote (max 100) |
+| `PATCH` | `/api/v1/devices/bulk/department` | Atribuir departamento em lote (max 100) |
+| `POST` | `/api/v1/devices/bulk/delete` | Excluir em lote (max 100) |
 | `POST` | `/api/v1/departments` | Criar departamento |
 | `PUT` | `/api/v1/departments/:id` | Renomear departamento |
 | `DELETE` | `/api/v1/departments/:id` | Excluir departamento |
 | `POST` | `/api/v1/users` | Criar usuário (com role) |
+| `PUT` | `/api/v1/users/:id` | Atualizar usuário |
 | `DELETE` | `/api/v1/users/:id` | Excluir usuário |
 | `GET` | `/api/v1/audit-logs` | Logs de auditoria |
 | `GET` | `/api/v1/audit-logs/:type/:id` | Logs de recurso específico |
@@ -310,7 +320,7 @@ go build -o inventory-agent.exe ./cmd/agent
 | `sort` | string | `hostname` | Coluna: hostname, os, last_seen, status |
 | `order` | string | `asc` | Direção: asc, desc |
 | `page` | int | `1` | Página |
-| `limit` | int | `50` | Itens/página (máx: 100) |
+| `limit` | int | `50` | Itens/página (máx: 200) |
 
 ---
 
@@ -328,6 +338,8 @@ go build -o inventory-agent.exe ./cmd/agent
 | **Software** | Nome, versão, fabricante, data instalação | Registry: `HKLM/HKCU\SOFTWARE\...\Uninstall` (x86+x64) |
 | **Licença** | Status ativação Windows | WMI: `SoftwareLicensingProduct` |
 | **Acesso Remoto** | TeamViewer ID, AnyDesk ID, RustDesk ID | Registry + config files + CLI fallback |
+
+> **Nota:** As queries WMI de `Win32_OperatingSystem` e `Win32_BIOS` são **non-fatal** — se falharem, os campos ficam vazios e o inventário é enviado parcialmente.
 
 ---
 
@@ -367,6 +379,35 @@ go build -o inventory-agent.exe ./cmd/agent
 
 ---
 
+## Segurança
+
+### Autenticação e Sessão
+- **Cookie JWT**: `HttpOnly`, `SameSite=Lax`, `Secure` dinâmico (ativo automaticamente em HTTPS)
+- **JWT Secret**: mínimo 32 caracteres — servidor recusa iniciar se menor
+- **bcrypt**: hash de senhas com salt automático
+- **Timing-safe**: comparação de tokens e senhas com `crypto/subtle`
+
+### Proteção contra Abuso
+- **Rate Limiting**: `/auth/login` (5/min), `/enroll` (10/min) por IP
+- **Body Size Limit**: 10 MB via `http.MaxBytesReader` (previne OOM/DoS)
+- **Password Max Length**: 200 chars no login (previne bcrypt DoS)
+- **Bulk Operations Cap**: máximo 100 itens por requisição
+- **Pagination Cap**: máximo 200 itens por página
+- **Agent Response Limit**: 1 MB (`io.LimitReader`) — previne OOM no agent
+
+### Controle de Acesso
+- **RBAC**: roles `admin` e `viewer` com `AbortWithStatusJSON`
+- **Enrollment Key**: hash com bcrypt para provisionamento de agents
+- **Device Token**: SHA-256 com validação contra token vazio
+
+### Headers de Segurança
+- `Content-Security-Policy` (CSP dinâmico baseado em `CORS_ORIGINS`)
+- `X-Frame-Options: DENY`
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+
+---
+
 ## Variáveis de Ambiente
 
 Copie `.env.example` para `.env` e preencha os valores.
@@ -377,7 +418,7 @@ Copie `.env.example` para `.env` e preencha os valores.
 | `SERVER_PORT` | Porta da API exposta no host | `8081` | Não |
 | `JWT_SECRET` | Chave HS256 para JWT (≥32 chars) | — | **Sim** |
 | `ENROLLMENT_KEY` | Chave de enrollment dos agents | — | **Sim** |
-| `CORS_ORIGINS` | Origens permitidas (vírgula-separadas, ex: `http://<SEU_IP>:5173`) | — | Não |
+| `CORS_ORIGINS` | Origens permitidas (vírgula-separadas) | `http://localhost:3000` | Não |
 | `LOG_LEVEL` | Nível de log: debug, info, warn, error | `info` | Não |
 | `RETENTION_DAYS` | Dias para reter logs (audit, activity, hardware history) | `90` | Não |
 | `INACTIVE_DAYS` | Dias sem comunicação para marcar device como inativo | `30` | Não |
