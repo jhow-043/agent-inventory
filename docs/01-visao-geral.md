@@ -14,7 +14,7 @@ O sistema tem 3 partes que se comunicam:
 │                  │────────>│                                      │
 │  - Roda como     │         │  ┌────────────┐    ┌─────────────┐  │
 │    serviço       │         │  │  API (Go)   │───>│ PostgreSQL  │  │
-│  - Coleta WMI    │         │  │  Gin :8080  │    │    :5432    │  │
+│  - Coleta WMI    │         │  │  Gin :8081  │    │    :5432    │  │
 │  - Envia dados   │         │  └─────┬──────┘    └─────────────┘  │
 │    periodicamente│         │        │                             │
 └──────────────────┘         └────────┼─────────────────────────────┘

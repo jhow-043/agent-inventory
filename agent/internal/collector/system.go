@@ -48,15 +48,12 @@ func (c *Collector) collectSystem() (*systemInfo, error) {
 
 	var osResult []win32OS
 	if err := wmi.Query("SELECT Caption, Version, BuildNumber, OSArchitecture, LastBootUpTime FROM Win32_OperatingSystem", &osResult); err != nil {
-		return nil, fmt.Errorf("query Win32_OperatingSystem: %w", err)
-	}
-	if len(osResult) == 0 {
-		return nil, fmt.Errorf("no Win32_OperatingSystem results")
+		c.logger.Warn("failed to query Win32_OperatingSystem", "error", err)
 	}
 
 	var bios []win32BIOS
 	if err := wmi.Query("SELECT SerialNumber FROM Win32_BIOS", &bios); err != nil {
-		return nil, fmt.Errorf("query Win32_BIOS: %w", err)
+		c.logger.Warn("failed to query Win32_BIOS", "error", err)
 	}
 	serial := ""
 	if len(bios) > 0 {
@@ -72,16 +69,20 @@ func (c *Collector) collectSystem() (*systemInfo, error) {
 		user = cs[0].UserName
 	}
 
-	bootTime := osResult[0].LastBootUpTime
-
-	return &systemInfo{
+	info := &systemInfo{
 		Hostname:     hostname,
 		SerialNumber: serial,
-		OSName:       osResult[0].Caption,
-		OSVersion:    osResult[0].Version,
-		OSBuild:      osResult[0].BuildNumber,
-		OSArch:       osResult[0].OSArchitecture,
-		LastBootTime: &bootTime,
 		LoggedInUser: user,
-	}, nil
+	}
+
+	if len(osResult) > 0 {
+		info.OSName = osResult[0].Caption
+		info.OSVersion = osResult[0].Version
+		info.OSBuild = osResult[0].BuildNumber
+		info.OSArch = osResult[0].OSArchitecture
+		bootTime := osResult[0].LastBootUpTime
+		info.LastBootTime = &bootTime
+	}
+
+	return info, nil
 }

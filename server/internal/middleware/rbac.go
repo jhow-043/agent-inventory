@@ -14,15 +14,13 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userRole, exists := c.Get("user_role")
 		if !exists {
-			c.JSON(http.StatusForbidden, dto.ErrorResponse{Error: "role information not found"})
-			c.Abort()
+			c.AbortWithStatusJSON(http.StatusForbidden, dto.ErrorResponse{Error: "role information not found"})
 			return
 		}
 
 		role, ok := userRole.(string)
 		if !ok {
-			c.JSON(http.StatusForbidden, dto.ErrorResponse{Error: "invalid role format"})
-			c.Abort()
+			c.AbortWithStatusJSON(http.StatusForbidden, dto.ErrorResponse{Error: "invalid role format"})
 			return
 		}
 
@@ -34,7 +32,6 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 			}
 		}
 
-		c.JSON(http.StatusForbidden, dto.ErrorResponse{Error: "insufficient permissions"})
-		c.Abort()
+		c.AbortWithStatusJSON(http.StatusForbidden, dto.ErrorResponse{Error: "insufficient permissions"})
 	}
 }

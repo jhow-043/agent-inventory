@@ -5,6 +5,32 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.2.0] - 2026-02-23
+
+### Segurança
+- **Cookie hardening** — session cookie agora usa `SameSite=Lax` e `Secure` dinâmico (ativo em HTTPS) via `http.SetCookie`
+- **JWT secret mínimo enforced** — servidor recusa iniciar se `JWT_SECRET` tiver menos de 32 caracteres (antes era apenas warning)
+- **Body size limit** — novo middleware `MaxBodySize` limita request body a 10 MB (previne OOM/DoS)
+- **Bulk operations cap** — operações em massa limitadas a 100 itens por request (`max=100` nas binding tags)
+- **Pagination cap** — `?limit=` limitado a 200 em todos os endpoints paginados
+- **Password max length** — `LoginRequest.Password` limitado a 200 caracteres (previne bcrypt DoS)
+- **Response size limit (Agent)** — respostas HTTP limitadas a 1 MB via `io.LimitReader` (previne OOM)
+- **Agent token validation** — rejeita token vazio após enrollment
+
+### Corrigido
+- **Type assertions seguras** — 7 locais corrigidos com check `ok` para evitar panic em runtime (`auth.go`, `inventory.go`, `user.go`, `audit.go`)
+- **RBAC middleware** — `c.JSON()` + `c.Abort()` substituídos por `c.AbortWithStatusJSON()` (evita execução de handlers após rejeição)
+- **Erros 404 vs 500** — device handler agora distingue `sql.ErrNoRows` (404) de erros internos (500) via helper `isNotFound()`
+- **SELECT explícito** — `ListUsers` usa colunas nomeadas em vez de `SELECT *`
+- **Frontend 204 handling** — `request()` trata respostas `204 No Content` sem tentar parse JSON
+- **Frontend logout resiliente** — `logout()` limpa estado local mesmo se a chamada API falhar
+- **Agent `IsAuthError`** — usa `errors.As()` tipado em vez de string parsing
+
+### Melhorado
+- **Agent coleta resiliente** — queries WMI de `Win32_OperatingSystem` e `Win32_BIOS` não são mais fatais; campos ficam vazios se falharem
+- Campos `binding:"required"` relaxados em `InventoryRequest` para suportar coleta parcial
+- Documentação e porta padrão atualizados de 8080 para 8081
+
 ## [1.1.0] - 2026-02-19
 
 ### Adicionado

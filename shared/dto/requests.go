@@ -17,15 +17,15 @@ type EnrollRequest struct {
 type InventoryRequest struct {
 	Hostname      string           `json:"hostname" binding:"required"`
 	SerialNumber  string           `json:"serial_number" binding:"required"`
-	OSName        string           `json:"os_name" binding:"required"`
-	OSVersion     string           `json:"os_version" binding:"required"`
+	OSName        string           `json:"os_name"`
+	OSVersion     string           `json:"os_version"`
 	OSBuild       string           `json:"os_build"`
 	OSArch        string           `json:"os_arch"`
 	LastBootTime  *time.Time       `json:"last_boot_time,omitempty"`
 	LoggedInUser  string           `json:"logged_in_user"`
 	AgentVersion  string           `json:"agent_version"`
 	LicenseStatus string           `json:"license_status"`
-	Hardware      HardwareData     `json:"hardware" binding:"required"`
+	Hardware      HardwareData     `json:"hardware"`
 	Disks         []DiskData       `json:"disks"`
 	Network       []NetworkData    `json:"network_interfaces"`
 	Software      []SoftwareData   `json:"installed_software"`
@@ -34,10 +34,10 @@ type InventoryRequest struct {
 
 // HardwareData contains CPU, RAM, motherboard, and BIOS info.
 type HardwareData struct {
-	CPUModel                string `json:"cpu_model" binding:"required"`
-	CPUCores                int    `json:"cpu_cores" binding:"required"`
+	CPUModel                string `json:"cpu_model"`
+	CPUCores                int    `json:"cpu_cores"`
 	CPUThreads              int    `json:"cpu_threads"`
-	RAMTotalBytes           int64  `json:"ram_total_bytes" binding:"required"`
+	RAMTotalBytes           int64  `json:"ram_total_bytes"`
 	MotherboardManufacturer string `json:"motherboard_manufacturer"`
 	MotherboardProduct      string `json:"motherboard_product"`
 	MotherboardSerial       string `json:"motherboard_serial"`
@@ -47,8 +47,8 @@ type HardwareData struct {
 
 // DiskData contains disk drive information.
 type DiskData struct {
-	Model              string `json:"model" binding:"required"`
-	SizeBytes          int64  `json:"size_bytes" binding:"required"`
+	Model              string `json:"model"`
+	SizeBytes          int64  `json:"size_bytes"`
 	MediaType          string `json:"media_type"`
 	SerialNumber       string `json:"serial_number"`
 	InterfaceType      string `json:"interface_type"`
@@ -59,7 +59,7 @@ type DiskData struct {
 
 // NetworkData contains network interface information.
 type NetworkData struct {
-	Name        string `json:"name" binding:"required"`
+	Name        string `json:"name"`
 	MACAddress  string `json:"mac_address"`
 	IPv4Address string `json:"ipv4_address"`
 	IPv6Address string `json:"ipv6_address"`
@@ -69,7 +69,7 @@ type NetworkData struct {
 
 // SoftwareData contains installed software information.
 type SoftwareData struct {
-	Name        string `json:"name" binding:"required"`
+	Name        string `json:"name"`
 	Version     string `json:"version"`
 	Vendor      string `json:"vendor"`
 	InstallDate string `json:"install_date"`
@@ -77,14 +77,14 @@ type SoftwareData struct {
 
 // LoginRequest is used to authenticate dashboard users.
 type RemoteToolData struct {
-	ToolName string `json:"tool_name" binding:"required"`
+	ToolName string `json:"tool_name"`
 	RemoteID string `json:"remote_id"`
 	Version  string `json:"version"`
 }
 
 type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string `json:"username" binding:"required,max=100"`
+	Password string `json:"password" binding:"required,max=200"`
 }
 
 // CreateUserRequest is used to create a new dashboard user.
@@ -115,19 +115,19 @@ type UpdateDeviceDepartmentRequest struct {
 
 // BulkDeviceStatusRequest is used to change the status of multiple devices at once.
 type BulkDeviceStatusRequest struct {
-	DeviceIDs []uuid.UUID `json:"device_ids" binding:"required,min=1"`
+	DeviceIDs []uuid.UUID `json:"device_ids" binding:"required,min=1,max=100"`
 	Status    string      `json:"status" binding:"required,oneof=active inactive"`
 }
 
 // BulkDeviceDepartmentRequest is used to assign multiple devices to a department.
 type BulkDeviceDepartmentRequest struct {
-	DeviceIDs    []uuid.UUID `json:"device_ids" binding:"required,min=1"`
+	DeviceIDs    []uuid.UUID `json:"device_ids" binding:"required,min=1,max=100"`
 	DepartmentID *uuid.UUID  `json:"department_id"`
 }
 
 // BulkDeviceDeleteRequest is used to delete multiple devices at once.
 type BulkDeviceDeleteRequest struct {
-	DeviceIDs []uuid.UUID `json:"device_ids" binding:"required,min=1"`
+	DeviceIDs []uuid.UUID `json:"device_ids" binding:"required,min=1,max=100"`
 }
 
 // BulkActionResponse returns the count of affected devices.

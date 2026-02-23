@@ -20,8 +20,8 @@ Edite o `.env`:
 # Senha do PostgreSQL
 POSTGRES_PASSWORD=uma-senha-forte
 
-# Porta da API (default: 8080)
-SERVER_PORT=8080
+# Porta da API (default: 8081)
+SERVER_PORT=8081
 
 # Nível de log: debug, info, warn, error
 LOG_LEVEL=info
@@ -68,9 +68,9 @@ make create-user USERNAME=admin PASSWORD=senha_segura
 
 ### 4. Acessar o sistema
 
-- API: `http://localhost:8080`
-- Health check: `http://localhost:8080/healthz`
-- Readiness: `http://localhost:8080/readyz`
+- API: `http://localhost:8081`
+- Health check: `http://localhost:8081/healthz`
+- Readiness: `http://localhost:8081/readyz`
 
 ## Docker Compose — Detalhes
 
@@ -87,12 +87,12 @@ services:
 
   api:
     build: server/Dockerfile
-    ports: "8080:8080"
+    ports: "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy   # Espera o banco estar saudável
     healthcheck:
-      test: wget --tries=1 -qO/dev/null http://localhost:8080/healthz
+      test: wget --tries=1 -qO/dev/null http://localhost:8081/healthz
       interval: 30s
       start_period: 15s              # 15s para inicialização
     restart: unless-stopped
@@ -143,7 +143,7 @@ config.json
 
 ```json
 {
-  "server_url": "http://SEU-SERVIDOR:8080",
+  "server_url": "http://SEU-SERVIDOR:8081",
   "enrollment_key": "mesma-chave-do-servidor",
   "interval_hours": 1,
   "data_dir": "data",
@@ -154,7 +154,7 @@ config.json
 
 | Campo | Valor |
 |-------|-------|
-| `server_url` | URL da API (ex: `http://192.168.1.100:8080`) |
+| `server_url` | URL da API (ex: `http://192.168.1.100:8081`) |
 | `enrollment_key` | Mesma `ENROLLMENT_KEY` configurada no servidor |
 | `interval_hours` | Intervalo entre coletas em horas |
 | `insecure_skip_verify` | `true` apenas para HTTPS com certificado auto-assinado |
@@ -292,7 +292,7 @@ server {
 
     # API proxy
     location /api/ {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://localhost:8081;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -310,7 +310,7 @@ inventario.empresa.com {
     try_files {path} /index.html
 
     handle /api/* {
-        reverse_proxy localhost:8080
+        reverse_proxy localhost:8081
     }
 }
 ```

@@ -56,13 +56,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await authApi.logout();
-    localStorage.removeItem('authenticated');
-    localStorage.removeItem('username');
-    localStorage.removeItem('role');
-    setIsAuthenticated(false);
-    setUsername(null);
-    setRole(null);
+    // Always clear local state, even if the API call fails
+    const clearLocal = () => {
+      localStorage.removeItem('authenticated');
+      localStorage.removeItem('username');
+      localStorage.removeItem('role');
+      setIsAuthenticated(false);
+      setUsername(null);
+      setRole(null);
+    };
+    try {
+      await authApi.logout();
+    } catch {
+      // API may fail (e.g. network offline), but we still need to clear locally
+    } finally {
+      clearLocal();
+    }
   }, []);
 
   return (

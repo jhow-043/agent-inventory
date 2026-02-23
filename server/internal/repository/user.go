@@ -41,7 +41,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 // List returns all users ordered by creation date (newest first).
 func (r *UserRepository) List(ctx context.Context) ([]models.User, error) {
 	var users []models.User
-	err := r.db.SelectContext(ctx, &users, "SELECT * FROM users ORDER BY created_at DESC")
+	err := r.db.SelectContext(ctx, &users, "SELECT id, username, name, password_hash, role, created_at, updated_at FROM users ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}

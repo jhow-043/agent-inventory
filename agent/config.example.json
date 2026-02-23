@@ -1,5 +1,5 @@
 {
-  "server_url": "http://localhost:8080",
+  "server_url": "http://localhost:8081",
   "enrollment_key": "change-me-in-production",
   "interval_hours": 1,
   "data_dir": "",

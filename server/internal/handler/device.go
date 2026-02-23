@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -16,6 +18,8 @@ import (
 	"inventario/server/internal/service"
 	"inventario/shared/dto"
 )
+
+const maxPaginationLimit = 200 // caps ?limit= for all paginated endpoints
 
 // DeviceHandler handles device listing and detail endpoints.
 type DeviceHandler struct {
@@ -44,6 +48,12 @@ func NewDeviceHandler(svc *service.DeviceService, auditLogger *middleware.AuditL
 func (h *DeviceHandler) ListDevices(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if limit > maxPaginationLimit {
+		limit = maxPaginationLimit
+	}
+	if limit < 1 {
+		limit = 50
+	}
 
 	params := repository.ListParams{
 		Hostname:     c.Query("hostname"),
@@ -76,7 +86,11 @@ func (h *DeviceHandler) GetDevice(c *gin.Context) {
 		detail, err := h.service.GetDeviceDetail(c.Request.Context(), id)
 		if err != nil {
 			slog.Error("failed to get device detail", "error", err, "device_id", id)
-			c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+			if isNotFound(err) {
+				c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+			} else {
+				c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to get device detail"})
+			}
 			return
 		}
 		c.JSON(http.StatusOK, detail)
@@ -87,7 +101,11 @@ func (h *DeviceHandler) GetDevice(c *gin.Context) {
 	detail, err := h.service.GetDeviceDetailByHostname(c.Request.Context(), idStr)
 	if err != nil {
 		slog.Error("failed to get device detail by hostname", "error", err, "hostname", idStr)
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+		if isNotFound(err) {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to get device detail"})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, detail)
@@ -109,7 +127,11 @@ func (h *DeviceHandler) UpdateStatus(c *gin.Context) {
 
 	if err := h.service.UpdateStatus(c.Request.Context(), id, req.Status); err != nil {
 		slog.Error("failed to update device status", "error", err, "device_id", id)
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+		if isNotFound(err) {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to update device status"})
+		}
 		return
 	}
 
@@ -133,7 +155,11 @@ func (h *DeviceHandler) UpdateDepartment(c *gin.Context) {
 
 	if err := h.service.UpdateDepartment(c.Request.Context(), id, req.DepartmentID); err != nil {
 		slog.Error("failed to update device department", "error", err, "device_id", id)
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+		if isNotFound(err) {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to update device department"})
+		}
 		return
 	}
 
@@ -152,7 +178,11 @@ func (h *DeviceHandler) DeleteDevice(c *gin.Context) {
 	device, err := h.service.DeleteDevice(c.Request.Context(), id)
 	if err != nil {
 		slog.Error("failed to delete device", "error", err, "device_id", id)
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+		if isNotFound(err) {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "device not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to delete device"})
+		}
 		return
 	}
 
@@ -241,6 +271,9 @@ func (h *DeviceHandler) GetHardwareHistory(c *gin.Context) {
 	component := c.Query("component")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if limit > maxPaginationLimit {
+		limit = maxPaginationLimit
+	}
 	if page < 1 {
 		page = 1
 	}
@@ -271,6 +304,9 @@ func (h *DeviceHandler) GetDeviceActivity(c *gin.Context) {
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if limit > maxPaginationLimit {
+		limit = maxPaginationLimit
+	}
 	offset := (page - 1) * limit
 
 	logs, total, err := h.activityRepo.ListByDevice(c.Request.Context(), id, limit, offset)
@@ -341,4 +377,16 @@ func (h *DeviceHandler) ExportCSV(c *gin.Context) {
 			d.CreatedAt.Format(time.RFC3339),
 		})
 	}
+}
+
+// isNotFound returns true if the error indicates a not-found condition.
+func isNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return true
+	}
+	msg := err.Error()
+	return msg == "device not found" || msg == "user not found"
 }

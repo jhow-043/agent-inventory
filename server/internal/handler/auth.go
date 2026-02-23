@@ -12,6 +12,19 @@ import (
 	"inventario/shared/dto"
 )
 
+// setSessionCookie sets the JWT session cookie with secure defaults.
+func setSessionCookie(c *gin.Context, value string, maxAge int) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "session",
+		Value:    value,
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   c.Request.TLS != nil,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
 // AuthHandler handles enrollment, login, and logout.
 type AuthHandler struct {
 	service       *service.AuthService
@@ -65,8 +78,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// httpOnly=true, secure=false (HTTP in Phase 1).
-	c.SetCookie("session", tokenString, 86400, "/", "", false, true)
+	setSessionCookie(c, tokenString, 86400)
 	slog.Info("user logged in", "username", req.Username)
 	h.auditLogger.LogAuth(c, "auth.login", req.Username, true, nil)
 	c.JSON(http.StatusOK, dto.MessageResponse{Message: "login successful"})
@@ -75,13 +87,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // Logout clears the session cookie.
 func (h *AuthHandler) Logout(c *gin.Context) {
 	username := ""
-	if val, exists := c.Get("username"); exists && val != nil {
-		username = val.(string)
+	if val, exists := c.Get("username"); exists {
+		if u, ok := val.(string); ok {
+			username = u
+		}
 	}
 	if username != "" {
 		h.auditLogger.LogAuth(c, "auth.logout", username, true, nil)
 	}
-	c.SetCookie("session", "", -1, "/", "", false, true)
+	setSessionCookie(c, "", -1)
 	c.JSON(http.StatusOK, dto.MessageResponse{Message: "logout successful"})
 }
 
@@ -90,9 +104,26 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	sub, _ := c.Get("user_id")
 	username, _ := c.Get("username")
 	role, _ := c.Get("user_role")
+
+	subStr, ok := sub.(string)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "invalid session"})
+		return
+	}
+	usernameStr, ok := username.(string)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "invalid session"})
+		return
+	}
+	roleStr, ok := role.(string)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "invalid session"})
+		return
+	}
+
 	c.JSON(http.StatusOK, dto.MeResponse{
-		ID:       sub.(string),
-		Username: username.(string),
-		Role:     role.(string),
+		ID:       subStr,
+		Username: usernameStr,
+		Role:     roleStr,
 	})
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -17,6 +18,19 @@ import (
 
 	"inventario/shared/dto"
 )
+
+// maxResponseSize limits the response body size to 1MB to prevent OOM.
+const maxResponseSize = 1 << 20 // 1 MB
+
+// AuthError is returned when the API responds with 401 or 403.
+type AuthError struct {
+	StatusCode int
+	Message    string
+}
+
+func (e *AuthError) Error() string {
+	return fmt.Sprintf("auth error (status %d): %s", e.StatusCode, e.Message)
+}
 
 // Client communicates with the central inventory API.
 type Client struct {
@@ -74,7 +88,10 @@ func (c *Client) Enroll(ctx context.Context, enrollmentKey, hostname, serialNumb
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			return nil, &AuthError{StatusCode: resp.StatusCode, Message: string(respBody)}
+		}
 		return nil, fmt.Errorf("enroll failed (status %d): %s", resp.StatusCode, string(respBody))
 	}
 
@@ -107,7 +124,10 @@ func (c *Client) SubmitInventory(ctx context.Context, inventory *dto.InventoryRe
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			return &AuthError{StatusCode: resp.StatusCode, Message: string(respBody)}
+		}
 		return fmt.Errorf("inventory submit failed (status %d): %s", resp.StatusCode, string(respBody))
 	}
 
@@ -151,6 +171,6 @@ func IsAuthError(err error) bool {
 	if err == nil {
 		return false
 	}
-	s := err.Error()
-	return strings.Contains(s, "status 401") || strings.Contains(s, "status 403")
+	var authErr *AuthError
+	return errors.As(err, &authErr)
 }

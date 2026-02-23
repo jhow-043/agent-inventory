@@ -93,7 +93,12 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 
 	sub, _ := c.Get("user_id")
-	requestingUserID, err := uuid.Parse(sub.(string))
+	subStr, ok := sub.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "invalid session"})
+		return
+	}
+	requestingUserID, err := uuid.Parse(subStr)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "invalid session"})
 		return
@@ -119,7 +124,12 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 
 	// Extract the requesting user's ID from JWT claims.
 	sub, _ := c.Get("user_id")
-	requestingUserID, err := uuid.Parse(sub.(string))
+	subStr, ok := sub.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "invalid session"})
+		return
+	}
+	requestingUserID, err := uuid.Parse(subStr)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "invalid session"})
 		return

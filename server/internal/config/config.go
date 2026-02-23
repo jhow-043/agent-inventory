@@ -28,7 +28,7 @@ type Config struct {
 func Load() *Config {
 	cfg := &Config{
 		DatabaseURL:     getEnv("DATABASE_URL", "postgres://inventory:changeme@localhost:5432/inventory?sslmode=disable"),
-		ServerPort:      getEnv("SERVER_PORT", "8080"),
+		ServerPort:      getEnv("SERVER_PORT", "8081"),
 		JWTSecret:       getEnv("JWT_SECRET", ""),
 		EnrollmentKey:   getEnv("ENROLLMENT_KEY", ""),
 		CORSOrigins:     strings.Split(getEnv("CORS_ORIGINS", "http://localhost:3000"), ","),
@@ -53,7 +53,8 @@ func Load() *Config {
 		os.Exit(1)
 	}
 	if len(cfg.JWTSecret) < 32 {
-		slog.Warn("JWT_SECRET should be at least 32 characters for adequate security")
+		slog.Error("JWT_SECRET must be at least 32 characters for adequate security")
+		os.Exit(1)
 	}
 	if cfg.EnrollmentKey == "" {
 		slog.Error("ENROLLMENT_KEY environment variable is required")

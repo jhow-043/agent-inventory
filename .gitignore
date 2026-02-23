@@ -47,9 +47,13 @@ agent/config.json
 agent/build/
 agent/installer/output/
 
+# ─── Vite cache ──────────────────────────────────────
+.vite/
+
 # ─── Misc ────────────────────────────────────────────
 cookies.txt
 login.json
 imagens/
 *.log
 *.tmp
+/package-lock.json

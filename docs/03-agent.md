@@ -105,7 +105,7 @@ Arquivo `config.json` (por padrão, ao lado do executável):
 
 ```json
 {
-  "server_url": "http://192.168.1.100:8080",
+  "server_url": "http://192.168.1.100:8081",
   "enrollment_key": "minha-chave-secreta",
   "interval_hours": 1,
   "data_dir": "data",

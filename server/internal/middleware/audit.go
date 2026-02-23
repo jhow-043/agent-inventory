@@ -42,7 +42,9 @@ func (a *AuditLogger) Log(c *gin.Context, action, resourceType string, resourceI
 	// For device auth (agent actions)
 	if username == "" && userID == nil {
 		if deviceID, exists := c.Get("device_id"); exists {
-			username = "device:" + deviceID.(uuid.UUID).String()
+			if did, ok := deviceID.(uuid.UUID); ok {
+				username = "device:" + did.String()
+			}
 		}
 	}
 

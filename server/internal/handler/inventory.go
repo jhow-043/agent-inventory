@@ -28,7 +28,11 @@ func (h *InventoryHandler) SubmitInventory(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "device not authenticated"})
 		return
 	}
-	deviceID := deviceIDRaw.(uuid.UUID)
+	deviceID, ok := deviceIDRaw.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "invalid device session"})
+		return
+	}
 
 	var req dto.InventoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

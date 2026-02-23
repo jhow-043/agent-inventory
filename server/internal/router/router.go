@@ -36,6 +36,7 @@ func Setup(
 	r.Use(middleware.Logging())
 	r.Use(middleware.SecurityHeaders(cfg.CORSOrigins))
 	r.Use(middleware.CORS(cfg.CORSOrigins))
+	r.Use(middleware.DefaultMaxBodySize())
 
 	// Health probes — no authentication required.
 	r.GET("/healthz", healthHandler.Healthz)

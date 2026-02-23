@@ -1,6 +1,6 @@
 # Script para testar o envio de inventário
 
-$apiUrl = "http://localhost:8080/api/v1"
+$apiUrl = "http://localhost:8081/api/v1"
 $enrollmentKey = "8a3f9c2e7b4d1f6a"
 
 # 1. Enroll do dispositivo

@@ -374,7 +374,7 @@ Copie `.env.example` para `.env` e preencha os valores.
 | Variável | Descrição | Default | Obrigatória |
 |---|---|---|---|
 | `POSTGRES_PASSWORD` | Senha do PostgreSQL (Docker) | `changeme` | Sim |
-| `SERVER_PORT` | Porta da API exposta no host (sugestão: `8081`) | `8080` | Não |
+| `SERVER_PORT` | Porta da API exposta no host | `8081` | Não |
 | `JWT_SECRET` | Chave HS256 para JWT (≥32 chars) | — | **Sim** |
 | `ENROLLMENT_KEY` | Chave de enrollment dos agents | — | **Sim** |
 | `CORS_ORIGINS` | Origens permitidas (vírgula-separadas, ex: `http://<SEU_IP>:5173`) | — | Não |
@@ -388,7 +388,7 @@ Copie `.env.example` para `.env` e preencha os valores.
 Para rodar o sistema na rede interna, configure:
 
 1. **`.env`** — `SERVER_PORT` com a porta desejada e `CORS_ORIGINS` com `http://<SEU_IP>:<PORTA_FRONTEND>`
-2. **`docker-compose.yml`** — na seção `ports` da API, use `<SEU_IP>:<PORTA>:8080` para restringir o bind
+2. **`docker-compose.yml`** — na seção `ports` da API, use `<SEU_IP>:<PORTA>:8081` para restringir o bind
 3. **`frontend/vite.config.ts`** — altere `host` para o IP e `proxy` para apontar à API
 
 ---

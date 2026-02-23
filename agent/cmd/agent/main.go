@@ -245,6 +245,10 @@ func runCycle(
 			logger.Error("enrollment failed", "error", err)
 			return
 		}
+		if resp.Token == "" {
+			logger.Error("enrollment returned empty token")
+			return
+		}
 		*tok = resp.Token
 		if err := store.Save(*tok); err != nil {
 			logger.Error("failed to persist token", "error", err)

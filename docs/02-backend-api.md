@@ -42,7 +42,7 @@ O `main.go` faz na ordem:
 | Variável | Obrigatória | Default | Descrição |
 |----------|-------------|---------|-----------|
 | `DATABASE_URL` | Não | `postgres://inventory:changeme@localhost:5432/inventory?sslmode=disable` | Connection string PostgreSQL |
-| `SERVER_PORT` | Não | `8080` | Porta HTTP |
+| `SERVER_PORT` | Não | `8081` | Porta HTTP |
 | `LOG_LEVEL` | Não | `info` | Nível de log: `debug`, `info`, `warn`, `error` |
 | `JWT_SECRET` | **Sim** | — | Chave para assinar JWT (min 32 chars recomendado) |
 | `ENROLLMENT_KEY` | **Sim** | — | Chave que os agents usam para se registrar |

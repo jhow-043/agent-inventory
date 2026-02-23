@@ -67,7 +67,7 @@ An automated inventory system composed of:
     │  │ Win Service    │                       │  ┌───────────────────────┐  │
     │  └───────────────┘                       │  │  API Container (Go)   │  │
     │                                          │  │  Gin + sqlx + JWT     │  │
-    │  ┌───────────────┐                       │  │  :8080                │  │
+    │  ┌───────────────┐                       │  │  :8081                │  │
     │  │ ...N agents    │                       │  └──────────┬──────────┘  │
     │  └───────────────┘                       │             │ TCP:5432    │
     │                                          │  ┌──────────▼──────────┐  │
@@ -727,7 +727,7 @@ Full snapshot replacement on every collection (no delta sync in Phase 1).
 |---|---|---|---|
 | `DATABASE_URL` | PostgreSQL connection string | `postgres://inventory:changeme@localhost:5432/inventory?sslmode=disable` | Yes |
 | `POSTGRES_PASSWORD` | PostgreSQL password (Docker Compose) | `changeme` | Yes |
-| `SERVER_PORT` | API host listen port (docker maps to 8080 inside) | `8080` | No |
+| `SERVER_PORT` | API host listen port (docker maps to 8081 inside) | `8081` | No |
 | `JWT_SECRET` | JWT HS256 signing key (≥32 chars, exits if empty) | — | **Yes** |
 | `ENROLLMENT_KEY` | Agent enrollment key (exits if empty) | — | **Yes** |
 | `CORS_ORIGINS` | Comma-separated allowed origins | `http://localhost:3000` | No |
@@ -768,7 +768,7 @@ CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 | Service | Image | Port | Healthcheck | Restart |
 |---|---|---|---|---|
 | **postgres** | postgres:16-alpine | 5432:5432 | `pg_isready -U inventory` (10s interval, 5 retries) | unless-stopped |
-| **api** | inventario-api (built) | ${SERVER_PORT:-8080}:8080 | `wget -qO/dev/null http://localhost:8080/healthz` (30s interval, 3 retries, 15s start_period) | unless-stopped |
+| **api** | inventario-api (built) | ${SERVER_PORT:-8081}:8081 | `wget -qO/dev/null http://localhost:8081/healthz` (30s interval, 3 retries, 15s start_period) | unless-stopped |
 
 - API depends_on postgres (condition: service_healthy)
 - Volume: `postgres-data` for persistent database
@@ -788,7 +788,7 @@ FROM golang:1.24-alpine
 FROM alpine:3.20
 # ca-certificates, wget (healthcheck), tzdata
 # COPY --from=builder /app/server
-# EXPOSE 8080 → CMD ["./server"]
+# EXPOSE 8081 → CMD ["./server"]
 ```
 
 Note: Migrations are embedded via `//go:embed *.sql` in the binary — no separate migration files in the container.
